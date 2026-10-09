@@ -1,0 +1,19 @@
+[project]
+name = "rag-against-the-machine"
+version = "0.1.0"
+description = "RAG system for vLLM codebase - Retrieval-Augmented Generation"
+requires-python = ">=3.10"
+dependencies = [
+    "pydantic>=2.0",
+    "fire>=0.6",
+    "tqdm>=4.60",
+    #   "transformers>=4.30",
+    #    "torch>=2.0",
+    "bm25s>=0.3.13",
+]
+
+[dependency-groups]
+dev = [
+    "flake8>=7.0",
+    "mypy>=1.0",
+]
