@@ -296,13 +296,13 @@ sequenceDiagram
     loop for each file with tqdm
         alt is .py
             CLI->>PC: chunk_python_file(path, max_chunk_size)
-            PC->>PC: ast.parse + walk FunctionDef/ClassDef
-            PC->>B: split_oversized_chunk(chunk)
-            PC-->>CLI: List[Chunk]
+            PC->>PC: ast.parse + walk FunctionDef/ClassDef +<br/>inline line-aware split if unit > max
+            Note over PC,B: base.py is NOT called for splitting;<br/>only Chunk type + validate
+            PC-->>CLI: List[Chunk] all <= max
         else is .md
             CLI->>MC: chunk_markdown_file(path, max_chunk_size)
-            MC->>B: split_oversized_chunk(chunk)
-            MC-->>CLI: List[Chunk]
+            MC->>MC: header/paragraph split +<br/>inline paragraph-aware split if section > max
+            MC-->>CLI: List[Chunk] all <= max
         end
     end
     CLI->>T: [tokenize(c.text) for c in chunks]

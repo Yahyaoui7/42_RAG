@@ -25,19 +25,20 @@ def split_oversized_chunk(chunk: Chunk, max_chunk_size: int) -> list[Chunk]:
     mid-fence) structure.
 
     If ``len(chunk.text) <= max_chunk_size`` returns ``[chunk]``.
-    Otherwise raises ``ValueError`` so a bug in a chunker is caught
-    loudly at ``index`` time instead of being silently masked.
+    Otherwise raises ``ValueError`` so a bug in a chunker is
+    caught loudly at ``index`` time instead of being silently masked.
     """
 
     if len(chunk.text) <= max_chunk_size:
         return [chunk]
 
     raise ValueError(
-        f"chunker emitted oversized chunk {len(chunk.text)} > {max_chunk_size} "
-        f"for {chunk.file_path} [{chunk.first_character_index}:"
-        f"{chunk.last_character_index}]. "
-        f"Fix python_chunker/markdown_chunker to split that logical unit "
-        f"internally (line-aware for .py, paragraph-aware for .md)."
+        f"chunker emitted oversized chunk {len(chunk.text)} "
+        f"> {max_chunk_size} for {chunk.file_path} "
+        f"[{chunk.first_character_index}:{chunk.last_character_index}]. "
+        f"Fix python_chunker/markdown_chunker to split that "
+        f"logical unit internally (line-aware for .py, "
+        f"paragraph-aware for .md)."
     )
 
 
@@ -59,7 +60,7 @@ def validate_chunk(chunk: Chunk, file_content: str) -> bool:
     ):
         return False
     if (
-        file_content[chunk.first_character_index : chunk.last_character_index]
+        file_content[chunk.first_character_index:chunk.last_character_index]
         != chunk.text
     ):
         return False
