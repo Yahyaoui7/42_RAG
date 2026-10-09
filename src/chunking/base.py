@@ -51,7 +51,8 @@ def validate_chunk(chunk: Chunk, file_content: str) -> bool:
     - indices within bounds
     """
 
-    if chunk.last_character_index - chunk.first_character_index != len(chunk.text):
+    span = chunk.last_character_index - chunk.first_character_index
+    if span != len(chunk.text):
         return False
     if len(chunk.text) > 2000:
         return False
