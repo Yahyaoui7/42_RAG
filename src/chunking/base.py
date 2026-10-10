@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from src.config import DEFAULT_MAX_CHUNK_SIZE
 from src.models import MinimalSource
 
 
@@ -42,7 +43,9 @@ def split_oversized_chunk(chunk: Chunk, max_chunk_size: int) -> list[Chunk]:
     )
 
 
-def validate_chunk(chunk: Chunk, file_content: str) -> bool:
+def validate_chunk(
+    chunk: Chunk, file_content: str, max_chunk_size: int = 2000
+) -> bool:
     """Return True iff invariants hold.
 
     - ``last - first == len(text)``
@@ -54,14 +57,14 @@ def validate_chunk(chunk: Chunk, file_content: str) -> bool:
     span = chunk.last_character_index - chunk.first_character_index
     if span != len(chunk.text):
         return False
-    if len(chunk.text) > 2000:
+    if len(chunk.text) > max_chunk_size:
         return False
     if chunk.first_character_index < 0 or chunk.last_character_index > len(
         file_content
     ):
         return False
     if (
-        file_content[chunk.first_character_index:chunk.last_character_index]
+        file_content[chunk.first_character_index : chunk.last_character_index]
         != chunk.text
     ):
         return False
