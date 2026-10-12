@@ -283,33 +283,43 @@ classDiagram
 ## 7. Sequence — Indexing
 
 ```mermaid
+
 sequenceDiagram
-    participant CLI as __main__.py:index()
-    participant S as scanner.py:scan_files()
-    participant PC as python_chunker.py
-    participant MC as markdown_chunker.py
-    participant B as chunking/base.py
-    participant T as tokenizer.py
-    participant I as indexer.py
+    participant CLI as Main CLI
+    participant S as Scanner
+    participant PC as Python Chunker
+    participant MC as Markdown Chunker
+    participant T as Tokenizer
+    participant I as Indexer
+
     CLI->>S: scan_files(RAW_DIR)
-    S-->>CLI: List[Path] .py + .md sorted
-    loop for each file with tqdm
-        alt is .py
+    S-->>CLI: Sorted Python and Markdown file paths
+
+    loop For each file
+        alt Python file
             CLI->>PC: chunk_python_file(path, max_chunk_size)
-            PC->>PC: ast.parse + walk FunctionDef/ClassDef +<br/>inline line-aware split if unit > max
-            Note over PC,B: base.py is NOT called for splitting;<br/>only Chunk type + validate
-            PC-->>CLI: List[Chunk] all <= max
-        else is .md
+            PC->>PC: Parse AST and find classes/functions
+            PC->>PC: Split oversized code units
+            PC-->>CLI: List of Chunk objects
+        else Markdown file
             CLI->>MC: chunk_markdown_file(path, max_chunk_size)
-            MC->>MC: header/paragraph split +<br/>inline paragraph-aware split if section > max
-            MC-->>CLI: List[Chunk] all <= max
+            MC->>MC: Split by headings and paragraphs
+            MC->>MC: Split oversized paragraphs
+            MC-->>CLI: List of Chunk objects
         end
     end
-    CLI->>T: [tokenize(c.text) for c in chunks]
-    T-->>I: List[List[str]]
-    CLI->>I: build_index(chunks) -> BM25Okapi(k1=1.5, b=0.75)
+
+    Note over PC,MC: Chunk objects store text, file path, and character positions
+
+    CLI->>T: Tokenize each chunk's text
+    T-->>CLI: List of token lists
+
+    CLI->>I: build_index(chunks)
+    Note over I: BM25Okapi with k1=1.5 and b=0.75
     I-->>CLI: IndexData
+
     CLI->>I: save_index(IndexData, data/processed/index.pkl)
+    I-->>CLI: Index saved
 ```
 
 ## 8. Sequence — Retrieval (search / search_dataset)

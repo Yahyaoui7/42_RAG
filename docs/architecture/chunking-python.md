@@ -2,113 +2,89 @@
 
 ## Role
 
-Splits `.py` files into logical chunks (one per function/class + top-level blocks) using `ast`. This preserves semantic units — a retriever matching `def api_server` gets the whole function, not a random 2000-char window.
+Splits `.py` files via `langchain_text_splitters` `RecursiveCharacterTextSplitter.from_language(Language.PYTHON)`. Uses language-aware separators (`\ndef `, `\nclass `, `\n\n`, `\n`, ` `) to keep semantic units together. Guarantees `len(text) <= max_chunk_size` via `chunk_size=max_chunk_size, chunk_overlap=0, add_start_index=True`. Not `ast` — project decision (Option A langchain) for consistency with markdown/text chunkers.
 
 ## Diagram
 
 ```mermaid
 graph LR
-    FILE[.py file content] --> PARSE[ast.parse]
-    PARSE --> WALK[ast.walk -> FunctionDef<br/>AsyncFunctionDef ClassDef]
-    WALK --> SEG[ast.get_source_segment<br/>or lineno -> char index]
-    SEG --> RAW[Raw Chunks<br/>with first/last indices]
-    RAW --> GAP[Top-level gaps<br/>between nodes]
-    GAP --> INLINE{Logical unit > max?}
-    INLINE -->|No| OUT[List~Chunk~<br/>all <= max_chunk_size]
-    INLINE -->|Yes| LINESPLIT[Inline line-aware split<br/>splitlines keepends + accumulate]
-    LINESPLIT --> OUT
-
-    CFG[config.py] -. DEFAULT_MAX_CHUNK_SIZE .-> INLINE
+    FILE[.py file content] --> SPLIT["RecursiveCharacterTextSplitter<br/>from_language PYTHON<br/>chunk_size=max chunk_overlap=0"]
+    SPLIT --> DOCS["Documents<br/>page_content + start_index"]
+    DOCS --> FIX["Fix indices<br/>content.find fallback if trimmed"]
+    FIX --> OUT["List~Chunk~<br/>all <= max_chunk_size"]
+    CFG[config.py] -. DEFAULT_MAX_CHUNK_SIZE .-> SPLIT
     BASE[chunking/base.py] -. Chunk .-> OUT
-
-    classDef warn fill:#fff3cd,stroke:#856404
-    class PARSE warn
-    class WALK warn
 ```
 
 ## Functions
 
 ```python
 from pathlib import Path
-from chunking.base import Chunk  # split_oversized_chunk is deprecated guard, not used in normal path
+from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
+from src.chunking.base import Chunk
 
-def chunk_python_file(file_path: Path, max_chunk_size: int = 2000) -> list[Chunk]:
-    """Read file, parse with ast, return chunks with len<=max_chunk_size.
-    Oversized logical units (one def/class > max) are split inline line-aware.
-    On SyntaxError: fallback to inline generic split on raw text."""
-
-def _build_line_offsets(content: str) -> list[int]:
-    """Return list where offsets[i] = char index of line i (1-indexed for ast lineno). offsets[0] unused."""
-
-def _lineno_to_char_index(line_offsets: list[int], lineno: int, col_offset: int) -> int:
-    """Convert ast lineno+col_offset to absolute char index using line_offsets."""
-
-def _get_node_span(node: ast.AST, line_offsets: list[int], content: str) -> tuple[int, int]:
-    """Return (first, last) char indices for node. Prefers ast.get_source_segment span via col_offset/end_lineno."""
-
-def _collect_gaps(nodes: list[ast.AST], content: str, line_offsets: list[int]) -> list[tuple[int,int]]:
-    """Return (start,end) ranges for top-level code between class/func nodes."""
+def chunk_python_file(file_path: Path, max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE) -> list[Chunk]:
+    """Read file, split with Language.PYTHON, return chunks with len<=max and correct first/last via add_start_index."""
 ```
 
 ## Algorithm
 
 ```
 content = file_path.read_text(encoding="utf-8", errors="ignore")
-try: tree = ast.parse(content)
-except SyntaxError:
-    return _inline_generic_split(content, str(file_path), 0, max_chunk_size)
-
-line_offsets = _build_line_offsets(content)
-nodes = [n for n in tree.body if isinstance(n, (FunctionDef, AsyncFunctionDef, ClassDef))]
-# sort by lineno, extract each node's span -> Chunk via _get_node_span
-# collect gaps between nodes -> Chunk per gap (strip empty)
-# for each logical chunk if len(text) > max_chunk_size:
-#     inline line-aware: text.splitlines(keepends=True), accumulate cur until
-#     len(cur)+len(line) > max then flush cur; hard-slice any single line > max
-#     rebuild indices sequentially: new_first = base + offset, offset = sum(len(prev))
-# return sorted by first_character_index, contiguous non-overlapping
-# NOTE: base.py:split_oversized_chunk is NOT called — enforcement is inline.
+if not content.strip(): return []
+splitter = RecursiveCharacterTextSplitter.from_language(language=Language.PYTHON, chunk_size=max, chunk_overlap=0, add_start_index=True)
+documents = splitter.create_documents([content])
+for doc in documents:
+    text = doc.page_content; start = doc.metadata["start_index"]; end = start + len(text)
+    if content[start:end] != text: start = content.find(text, start); end = start + len(text)  # fallback for trimmed whitespace
+    chunks.append(Chunk(text, str(file_path), start, end))
 ```
 
 - `file_path` in Chunk is `str(file_path)` relative to repo root — must be `data/raw/...`.
-- `ast.get_source_segment(content, node)` gives exact text when available; otherwise reconstruct from `lineno`/`end_lineno`/`col_offset` + `line_offsets`.
-- Gaps handle `import` blocks and module-level constants — they are still searchable.
+- `add_start_index` gives exact char offset; fallback `find(text, start)` handles langchain trimming.
+- Empty/whitespace-only file -> `[]`. `OSError`/`UnicodeError` on read -> `[]`.
+- `langchain` already enforces `len(text) <= chunk_size` — no inline `split_oversized_chunk` needed (base.py guard not called).
 
 ## Relations
 
 | Relation | Direction | Detail |
 |---|---|---|
-| `python_chunker -> chunking/base` | imports | `Chunk` (and `validate_chunk` for debug). `split_oversized_chunk` is deprecated guard — not called; oversized units split inline line-aware |
+| `python_chunker -> chunking/base` | imports | `Chunk` (and `validate_chunk` for debug). `split_oversized_chunk` is NOT called — langchain enforces <=max |
 | `python_chunker -> config` | imports | `DEFAULT_MAX_CHUNK_SIZE` as default param |
 | `python_chunker <- scanner` | none | Scanner never calls it — indexer wires `scan_files() -> chunk_python_file()` |
-| `python_chunker -> indexer` | called by | `indexer.build_and_save_from_raw()` dispatches `*.py` here |
-| `python_chunker -> tokenizer` | none | Tokenizer runs later on `chunk.text` |
-| `python_chunker dependencies` | stdlib | `ast`, `pathlib` |
+| `python_chunker -> indexer` | called by | `indexer._chunk_file()` dispatches `*.py` here |
+| `python_chunker -> tokenizer` | none | Tokenizer runs later on `chunk.text` via `tokenize` (keeps not/none) |
+| `python_chunker dependencies` | external | `langchain_text_splitters`, `pathlib` |
 
 ## Depends On
 
 - `chunking/base.py`
-- `config` (optional default)
-- stdlib `ast`, `pathlib`
+- `config` (default)
+- `langchain_text_splitters`, `pathlib`
+
+Not `ast` — that was the docs template before the langchain decision. Current stack is `langchain_text_splitters>=1.1.3` with `Language.PYTHON`.
 
 ## Used By
 
-- `indexer.py`
+- `indexer.py` (`_chunk_file` for `.py`)
 
 ## Edge Cases
 
-- `SyntaxError` / encoding error => inline generic split on raw text (paragraph/line-aware, never blind `range` slice) — never crash.
-- Empty file => `[]`.
-- Single `FunctionDef`/`ClassDef` > `max_chunk_size` (e.g. 5000-char `def`) => inline line-aware split inside this chunker (try inner AST nodes first, else `splitlines(keepends=True)` accumulate; hard-slice only a single line > max).
-- File larger than 2000 and no AST nodes => inline generic split.
+- `OSError`/`UnicodeError` on read => `[]` — never crash.
+- Empty/whitespace => `[]`.
+- Single function > `max_chunk_size` (e.g. 5000-char `def`) => langchain splits internally on `Language.PYTHON` separators (still `<=max`).
+- Duplicate text => `find(text, start)` avoids wrong earlier match.
 
 ## Test
 
 ```python
-from chunking.python_chunker import chunk_python_file
+from pathlib import Path
+from src.chunking.python_chunker import chunk_python_file
 chunks = chunk_python_file(Path("data/raw/vllm/entrypoints/openai/api_server.py"))
+content = Path("data/raw/vllm/entrypoints/openai/api_server.py").read_text(encoding="utf-8", errors="ignore")
 for c in chunks:
     assert c.first_character_index >= 0 and c.last_character_index <= len(content)
     assert content[c.first_character_index:c.last_character_index] == c.text
     assert len(c.text) <= 2000
+assert all(len(c.text) <= 2000 for c in chunks)
 ```
