@@ -1,0 +1,6 @@
+ERROR: Could not consume arg: answer
+Usage: __main__.py <command>
+  available commands:    evaluate | index | search | search_dataset
+
+For detailed information on this command, run:
+  __main__.py --help

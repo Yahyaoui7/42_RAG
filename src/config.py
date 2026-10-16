@@ -1,6 +1,6 @@
 from pathlib import Path
 
-RAW_DIR: Path = Path("data/raw")
+RAW_DIR: Path = Path("data/raw/vllm-0.10.1")
 PROCESSED_DIR: Path = Path("data/processed")
 INDEX_PATH: Path = PROCESSED_DIR / "index.pkl"
 

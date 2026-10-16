@@ -8,10 +8,10 @@ from pathlib import Path
 import bm25s
 from tqdm import tqdm
 
-from src.chunking.base import Chunk
-from src.chunking.markdown_chunker import chunk_markdown_file
-from src.chunking.python_chunker import chunk_python_file
-from src.chunking.text_chunker import chunk_text_file
+from src.chunking import Chunk
+from src.chunking import chunk_markdown_file
+from src.chunking import chunk_python_file
+from src.chunking import chunk_text_file
 from src.config import (
     BM25_B,
     BM25_K1,
@@ -20,7 +20,6 @@ from src.config import (
     RAW_DIR,
 )
 from src.scanner import scan_files
-from src.tokenizer import tokenize
 
 
 @dataclass
@@ -35,22 +34,19 @@ class IndexData:
 def build_index(
     chunks: list[Chunk], k1: float = BM25_K1, b: float = BM25_B
 ) -> IndexData:
-    """Tokenize all chunks with our regex tokenizer (keeps not/none), build bm25s index.
+    """Build a BM25 index using our custom tokenizer."""
+    tokenized_corpus = bm25s.tokenize([chunk.text for chunk in chunks])
 
-    Empty chunks -> IndexData with bm25=None (valid, not crash).
-    We feed pre-tokenized list[list[str]] to bm25s.BM25.index() so bm25s.tokenizer
-    (which drops stopwords like 'not') is never called.
-    """
-    tokenized_corpus: list[list[str]] = [
-        tokenize(chunk.text) for chunk in chunks
-    ]
-    if not tokenized_corpus:
+    if not tokenized_corpus or not any(tokenized_corpus):
         return IndexData(bm25=None, chunks=chunks, tokenized_corpus=[])
 
     retriever = bm25s.BM25()
     retriever.index(tokenized_corpus, show_progress=False)
+
     return IndexData(
-        bm25=retriever, chunks=chunks, tokenized_corpus=tokenized_corpus
+        bm25=retriever,
+        chunks=chunks,
+        tokenized_corpus=tokenized_corpus,
     )
 
 
@@ -120,13 +116,13 @@ if __name__ == "__main__":
     demo_chunks = [
         Chunk(
             text="if not user.is_active: return None",
-            file_path="data/raw/a.py",
+            file_path=f"{RAW_DIR}/a.py",
             first_character_index=0,
             last_character_index=33,
         ),
         Chunk(
             text="if user.is_active: return user",
-            file_path="data/raw/b.py",
+            file_path=f"{RAW_DIR}/b.py",
             first_character_index=0,
             last_character_index=30,
         ),

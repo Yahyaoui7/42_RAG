@@ -1,0 +1,25 @@
+  0%|          | 0/100 [00:00<?, ?it/s]
+Split strings:   0%|          | 0/1 [00:00<?, ?it/s][A
+                                                    [A  0%|          | 0/100 [00:00<?, ?it/s]
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/nyahyaou/Desktop/RAG/src/__main__.py", line 61, in <module>
+    main()
+  File "/home/nyahyaou/Desktop/RAG/src/__main__.py", line 57, in main
+    fire.Fire(CLI)
+  File "/home/nyahyaou/goinfre/.uv/venv/lib/python3.10/site-packages/fire/core.py", line 135, in Fire
+    component_trace = _Fire(component, args, parsed_flag_args, context, name)
+  File "/home/nyahyaou/goinfre/.uv/venv/lib/python3.10/site-packages/fire/core.py", line 468, in _Fire
+    component, remaining_args = _CallAndUpdateTrace(
+  File "/home/nyahyaou/goinfre/.uv/venv/lib/python3.10/site-packages/fire/core.py", line 684, in _CallAndUpdateTrace
+    component = fn(*varargs, **kwargs)
+  File "/home/nyahyaou/Desktop/RAG/src/__main__.py", line 37, in search_dataset
+    result = searcher.format_as_student_results(
+  File "/home/nyahyaou/Desktop/RAG/src/retriever.py", line 57, in format_as_student_results
+    sources = self.search(q.question, k)
+  File "/home/nyahyaou/Desktop/RAG/src/retriever.py", line 32, in search
+    if key not in self.cache_ranked:
+TypeError: unhashable type: 'list'

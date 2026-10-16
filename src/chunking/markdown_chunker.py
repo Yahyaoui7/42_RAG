@@ -7,7 +7,7 @@ from src.config import DEFAULT_MAX_CHUNK_SIZE
 
 
 def chunk_markdown_file(
-    file_path: Path, max_chunk_size: int = 4000
+    file_path: Path, max_chunk_size: int = 2000
 ) -> list[Chunk]:
 
     file_path = Path(file_path)

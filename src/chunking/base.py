@@ -16,31 +16,31 @@ class Chunk:
     )
 
 
-def split_oversized_chunk(chunk: Chunk, max_chunk_size: int) -> list[Chunk]:
-    """Deprecated guard — kept only for import compatibility.
+# def split_oversized_chunk(chunk: Chunk, max_chunk_size: int) -> list[Chunk]:
+#     """Deprecated guard — kept only for import compatibility.
 
-    Chunkers (python_chunker / markdown_chunker) already enforce
-    ``len(text) <= max_chunk_size`` while building chunks, so this
-    function must not do blind ``range(0, len, max)`` slicing which
-    breaks Python (mid-def / mid-string) and Markdown (mid-header /
-    mid-fence) structure.
+#     Chunkers (python_chunker / markdown_chunker) already enforce
+#     ``len(text) <= max_chunk_size`` while building chunks, so this
+#     function must not do blind ``range(0, len, max)`` slicing which
+#     breaks Python (mid-def / mid-string) and Markdown (mid-header /
+#     mid-fence) structure.
 
-    If ``len(chunk.text) <= max_chunk_size`` returns ``[chunk]``.
-    Otherwise raises ``ValueError`` so a bug in a chunker is
-    caught loudly at ``index`` time instead of being silently masked.
-    """
+#     If ``len(chunk.text) <= max_chunk_size`` returns ``[chunk]``.
+#     Otherwise raises ``ValueError`` so a bug in a chunker is
+#     caught loudly at ``index`` time instead of being silently masked.
+#     """
 
-    if len(chunk.text) <= max_chunk_size:
-        return [chunk]
+#     if len(chunk.text) <= max_chunk_size:
+#         return [chunk]
 
-    raise ValueError(
-        f"chunker emitted oversized chunk {len(chunk.text)} "
-        f"> {max_chunk_size} for {chunk.file_path} "
-        f"[{chunk.first_character_index}:{chunk.last_character_index}]. "
-        f"Fix python_chunker/markdown_chunker to split that "
-        f"logical unit internally (line-aware for .py, "
-        f"paragraph-aware for .md)."
-    )
+#     raise ValueError(
+#         f"chunker emitted oversized chunk {len(chunk.text)} "
+#         f"> {max_chunk_size} for {chunk.file_path} "
+#         f"[{chunk.first_character_index}:{chunk.last_character_index}]. "
+#         f"Fix python_chunker/markdown_chunker to split that "
+#         f"logical unit internally (line-aware for .py, "
+#         f"paragraph-aware for .md)."
+#     )
 
 
 def validate_chunk(

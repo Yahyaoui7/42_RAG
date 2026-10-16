@@ -113,3 +113,20 @@ Follow **in order**: [IMPLEMENTATION_STEPS.md](IMPLEMENTATION_STEPS.md) (Steps 0
 - `docs/project_architecture_and_tasks.md` — learning roadmap + phases + checklist (823 lines, keep)
 - `docs/architecture_diagrams.md` — 12 merged Mermaid diagrams (master view, keep)
 - This folder `docs/architecture/` — per-file detail (what you asked for now)
+
+
+
+
+if not is.user:
+    return []
+
+is the not if at and    user
+
+
+----------------
+"
+- `docs/project_architecture_and_tasks.md` — learning roadmap + phases + checklist (823 lines, keep)
+- `docs/architecture_diagrams.md` — 12 merged Mermaid diagrams (master view, keep)
+- This folder `docs/architecture/` — per-file detail (what you asked for now)
+"
+
