@@ -8,7 +8,8 @@ from src.evaluator import Evaluator
 import uuid
 from pathlib import Path
 import json
-from src.prompts import Queen_model
+from src.prompts import Prompt
+from src.generate import Generate
 
 
 class CLI:
@@ -56,18 +57,20 @@ class CLI:
 
     def answer(self, query, k):
         searcher = Searcher()
-        Queen = Queen_model()
+        model = Generate()
 
         sources = searcher.search(query, k)
-        Queen.build_prompt(query, sources)
-        answer = Queen.generate_answer()
+        prompt = Prompt().build_prompt(query, sources)
+        answer = model.generate_answer(prompt)
         print("answer: ", answer)
 
-    # def answer_dataset(self, student_search_results_path, save_directory):
+    def answer_dataset(self, student_search_results_path, save_directory):
 
-    #     student_result = MinimalSearchResults.model_validate_json(
-    #         Path(student_search_results_path).read_text()
-    #     )
+        student_result = StudentSearchResults.model_validate_json(
+            Path(student_search_results_path).read_text()
+        )
+        genreter = Generate()
+        genreter.answer_dataset(student_result, save_directory)
 
 
 def main() -> None:

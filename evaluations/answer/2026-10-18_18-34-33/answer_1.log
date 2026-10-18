@@ -1,0 +1,1 @@
+answer:  The answer is: vLLM caches multi-modal outputs from HuggingFace processors to avoid processing the same multi-modal input again. This is done by calling the HF processor on the missing multi-modal data items and merging them with existing items in the cache.

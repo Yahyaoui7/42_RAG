@@ -1,0 +1,6 @@
+ERROR: The function received no value for the required argument: save_directory
+Usage: __main__.py search_dataset DATASET_PATH SAVE_DIRECTORY <flags>
+  optional flags:        --k
+
+For detailed information on this command, run:
+  __main__.py search_dataset --help

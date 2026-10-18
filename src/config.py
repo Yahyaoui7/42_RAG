@@ -10,5 +10,5 @@ BM25_K1: float = 1.5  # term saturation, tweak if recall low
 BM25_B: float = 0.75  # length norm, tweak if recall low
 
 QWEN_MODEL_ID: str = "Qwen/Qwen3-0.6B"
-QWEN_MAX_NEW_TOKENS: int = 512
+QWEN_MAX_NEW_TOKENS: int = 300
 QWEN_TEMPERATURE: float = 0.0  # deterministic
