@@ -57,8 +57,6 @@ def validate_chunk(
     span = chunk.last_character_index - chunk.first_character_index
     if span != len(chunk.text):
         return False
-    if len(chunk.text) > max_chunk_size:
-        return False
     if chunk.first_character_index < 0 or chunk.last_character_index > len(
         file_content
     ):

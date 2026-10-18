@@ -18,6 +18,7 @@ class Searcher:
         self.index_data = load_index(index_path)
 
     def search(self, query: str, k: int = 10) -> list[MinimalSource]:
+
         if k <= 0:
             return []
         tokens = bm25s.tokenize([query])
@@ -49,6 +50,7 @@ class Searcher:
     ) -> StudentSearchResults:
         # reuse self.index_data + self.search -> loads ONCE, 100x faster
         results = []
+
         for q in tqdm(questions):  # add tqdm here later
             sources = self.search(q.question, k)
             results.append(

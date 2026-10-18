@@ -38,6 +38,7 @@ def chunk_text_file(
 
         end = start + len(text)
         if content[start:end] != text:
+            print("the content[start:end] != text")
             found = content.find(text, start)
             if found != -1:
                 start = found

@@ -8,6 +8,7 @@ from src.evaluator import Evaluator
 import uuid
 from pathlib import Path
 import json
+from src.prompts import Queen_model
 
 
 class CLI:
@@ -34,6 +35,7 @@ class CLI:
             Path(dataset_path).read_text()
         ).rag_questions
         searcher = Searcher()  # load index.pkl ONCE, not 100x
+
         result = searcher.format_as_student_results(
             questions, k
         )  # inside: for q in tqdm(questions): searcher.search(q.question, k) -> uses your cache tuple(tokens) -> ranked[:k]
@@ -51,6 +53,21 @@ class CLI:
         print("Questions evaluated:")
         for k, v in score.items():
             print(f"Recall@{k}: {v:.3f} ({float(v * 100):.1f}%)")
+
+    def answer(self, query, k):
+        searcher = Searcher()
+        Queen = Queen_model()
+
+        sources = searcher.search(query, k)
+        Queen.build_prompt(query, sources)
+        answer = Queen.generate_answer()
+        print("answer: ", answer)
+
+    # def answer_dataset(self, student_search_results_path, save_directory):
+
+    #     student_result = MinimalSearchResults.model_validate_json(
+    #         Path(student_search_results_path).read_text()
+    #     )
 
 
 def main() -> None:

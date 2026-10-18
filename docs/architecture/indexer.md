@@ -141,3 +141,6 @@ assert all(len(c.text) <= 2000 for c in idx.chunks)
 assert 'not' in idx.tokenized_corpus[0] or True  # tokenizer keeps not/none
 assert idx.bm25.get_scores(tokenize("attention")).max() > 0  # bm25s scoring
 ```
+
+
+
