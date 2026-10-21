@@ -1,4 +1,5 @@
 __pycache__/
+.gitignore
 *.py[cod]
 *$py.class
 .mypy_cache/
@@ -12,4 +13,4 @@ build/
 data/
 evaluations/
 exams/
-test.py/
+test.py
