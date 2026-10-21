@@ -6,10 +6,10 @@ __pycache__/
 .venv/
 venv/
 uv.lock
-data/processed/
-data/output/
 *.egg-info/
 dist/
 build/
-data/raw/
+data/
 evaluations/
+exams/
+test.py/

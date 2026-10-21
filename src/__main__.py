@@ -45,16 +45,6 @@ class CLI:
             result.model_dump_json(indent=2)
         )
 
-    def evaluate(self, student_search_results_path: Path, dataset_path: Path):
-        print("\nEvaluation Results")
-        print("==" * 10)
-        evaluater = Evaluator(student_search_results_path, dataset_path)
-
-        score = evaluater.get_score()
-        print("Questions evaluated:")
-        for k, v in score.items():
-            print(f"Recall@{k}: {v:.3f} ({float(v * 100):.1f}%)")
-
     def answer(self, query, k):
         searcher = Searcher()
         model = Generate()
@@ -71,6 +61,16 @@ class CLI:
         )
         genreter = Generate()
         genreter.answer_dataset(student_result, save_directory)
+
+    def evaluate(self, student_search_results_path: Path, dataset_path: Path):
+        print("\nEvaluation Results")
+        print("==" * 10)
+        evaluater = Evaluator(student_search_results_path, dataset_path)
+
+        score = evaluater.get_score()
+        print("Questions evaluated:")
+        for k, v in score.items():
+            print(f"Recall@{k}: {v:.3f} ({float(v * 100):.1f}%)")
 
 
 def main() -> None:
