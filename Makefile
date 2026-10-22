@@ -1,25 +1,49 @@
-.PHONY: install run debug clean lint lint-strict
+UV = uv
+RUN = $(UV) run
+
+DATASET_CODE_PATH=data/datasets/public/UnansweredQuestions/dataset_code_public.json
+TRUTH_DATASET_CODE_PATH=data/datasets/public/AnsweredQuestions/dataset_code_public.json
+STUDENT_SEARCH_CODE_RESULT=data/output/search_results/dataset_code_public.json
+
+
+TOP_K = 10
+
 
 install:
-	uv sync
+	pip install uv
+	$(UV) sync
 
 run:
-	uv run python -m src $(ARGS)
+	$(RUN) -m src index
+	@echo
+	@echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+	@echo "                EVALUATE DOCS DATASET"
+	@echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+
+	@$(RUN) -m src search_dataset -k $(TOP_K)
+	@$(RUN) -m src evaluate
+	@echo
+	@echo
+	@echo
+	@echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
+	@echo "                EVALUATE CODE DATASET"
+	@echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
+	@$(RUN) -m src search_dataset -d $(DATASET_CODE_PATH)  -k $(TOP_K)
+	@$(RUN) -m src evaluate -s $(STUDENT_SEARCH_CODE_RESULT) -d $(TRUTH_DATASET_CODE_PATH)
+
 
 debug:
-	uv run python -m pdb -m src $(ARGS)
+	$(RUN) -m pdb -m src
 
 clean:
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	find . -type f -name "*.pyo" -delete 2>/dev/null || true
+	$(RUN) pyclean . -d
+	rm -rf .mypy_cache
+
 
 lint:
-	uv run flake8 src/
-	uv run mypy src/ --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
+	$(RUN) flake8 .
+	$(RUN) mypy . --warn-return-any --warn-unused-ignores \
+		--ignore-missing-imports --disallow-untyped-defs \
+		--check-untyped-defs
 
-lint-strict:
-	uv run flake8 src/
-	uv run mypy src/ --strict
+

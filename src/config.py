@@ -2,12 +2,35 @@ from pathlib import Path
 
 RAW_DIR: Path = Path("data/raw/vllm-0.10.1")
 PROCESSED_DIR: Path = Path("data/processed")
-INDEX_PATH: Path = PROCESSED_DIR / "index.pkl"
+INDEX_PATH: Path = PROCESSED_DIR / "lexical_index.pkl"
 
 
-DEFAULT_MAX_CHUNK_SIZE: int = 2000  # PDF VI.1 default, never emit > this
-BM25_K1: float = 1.5  # term saturation, tweak if recall low
-BM25_B: float = 0.75  # length norm, tweak if recall low
+INDEX_DIR = "data/processed/"
+RAW_DATA_DIR = "data/raw"
+
+
+TOP_K = 10
+MAX_CHUNK_SIZE = 2000
+
+DATASET_DIR = "data/datasets/public/"
+
+
+SEARCH_DATASET_PATH = (
+    DATASET_DIR + "UnansweredQuestions/dataset_docs_public.json"
+)
+SEARCH_SAVE_DIRECTORY = "data/output/search_results/"
+
+
+ANSWERED_DATASET_PATH = (
+    DATASET_DIR + "AnsweredQuestions/dataset_docs_public.json"
+)
+
+ANSWER_SAVE_DIRECTORY = "data/output/search_results_and_answer/"
+
+STUDENT_SEARCH_RESULTS_PATH = (
+    SEARCH_SAVE_DIRECTORY + SEARCH_DATASET_PATH.split("/")[-1]
+)
+
 
 QWEN_MODEL_ID: str = "Qwen/Qwen3-0.6B"
 QWEN_MAX_NEW_TOKENS: int = 300

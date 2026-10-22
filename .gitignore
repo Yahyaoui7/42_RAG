@@ -6,7 +6,6 @@ __pycache__/
 .pytest_cache/
 .venv/
 venv/
-uv.lock
 *.egg-info/
 dist/
 build/

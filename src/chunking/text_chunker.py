@@ -3,11 +3,11 @@ from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from src.chunking.base import Chunk
-from src.config import DEFAULT_MAX_CHUNK_SIZE
+from src.config import MAX_CHUNK_SIZE
 
 
 def chunk_text_file(
-    file_path: Path, max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE
+    file_path: Path, max_chunk_size: int = MAX_CHUNK_SIZE
 ) -> list[Chunk]:
 
     file_path = Path(file_path)

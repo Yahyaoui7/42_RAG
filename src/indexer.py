@@ -4,6 +4,9 @@ import pickle
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
 
 import bm25s
 from tqdm import tqdm
@@ -13,9 +16,7 @@ from src.chunking import chunk_markdown_file
 from src.chunking import chunk_python_file
 from src.chunking import chunk_text_file
 from src.config import (
-    BM25_B,
-    BM25_K1,
-    DEFAULT_MAX_CHUNK_SIZE,
+    MAX_CHUNK_SIZE,
     INDEX_PATH,
     RAW_DIR,
 )
@@ -31,9 +32,7 @@ class IndexData:
     ]  # kept for save/load round-trip and debugging
 
 
-def build_index(
-    chunks: list[Chunk], k1: float = BM25_K1, b: float = BM25_B
-) -> IndexData:
+def build_lexical_index(chunks: list[Chunk]) -> IndexData:
     """Build a BM25 index using our custom tokenizer."""
     tokenized_corpus = bm25s.tokenize([chunk.text for chunk in chunks])
 
@@ -50,12 +49,27 @@ def build_index(
     )
 
 
-def save_index(index: IndexData, path: Path = INDEX_PATH) -> None:
+def build_semantic_index(chunks: list[Chunk]) -> np.ndarray:
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+    return model.encode(
+        [chunk.text for chunk in chunks],
+        normalize_embeddings=True,
+        show_progress_bar=True,
+    )
+
+
+def save_lexical_index(index: IndexData, path: Path = INDEX_PATH) -> None:
     """Pickle IndexData to path (protocol 4). Ensures parent exists."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("wb") as f:
         pickle.dump(index, f, protocol=4)
+
+
+def save_semantic_index(vectors, path: Path = INDEX_PATH):
+    path = Path(path).with_name("semantic_index.npy")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    np.save(path, vectors)
 
 
 def load_index(path: Path = INDEX_PATH) -> IndexData:
@@ -81,7 +95,7 @@ def _chunk_file(path: Path, max_chunk_size: int) -> list[Chunk]:
 
 
 def build_and_save_from_raw(
-    max_chunk_size: int = DEFAULT_MAX_CHUNK_SIZE,
+    max_chunk_size: int = MAX_CHUNK_SIZE,
 ) -> None:
     """Scan data/raw/, chunk every file via langchain, build BM25, save to INDEX_PATH.
 
@@ -102,8 +116,11 @@ def build_and_save_from_raw(
         except Exception as e:
             print(f"Skip {file_path}: {e}", file=sys.stderr)
 
-    index = build_index(chunks)
-    save_index(index)
+    lexica_index = build_lexical_index(chunks)
+    semantic_index = build_semantic_index(chunks)
+
+    save_lexical_index(lexica_index)
+    save_semantic_index(semantic_index)
     print(
         f"Indexed {len(chunks)} chunks from {len(all_files)} files -> {INDEX_PATH}"
     )
@@ -128,7 +145,7 @@ if __name__ == "__main__":
         ),
     ]
     print(f"Input chunks: {[c.text for c in demo_chunks]}")
-    demo_index = build_index(demo_chunks)
+    demo_index = build_lexical_index(demo_chunks)
     print(f"Our tokenize keeps 'not': {demo_index.tokenized_corpus}")
     q = "not active"
     scores = demo_index.bm25.get_scores(tokenize(q))

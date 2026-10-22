@@ -38,7 +38,7 @@ class Prompt():
         question: str,
         contexts: list[MinimalSource],
     ) -> str:
-        context_texts = [self.load_chunk_text(chunk) for chunk in contexts]
+        context_texts = [chunk.text for chunk in contexts]
 
         chunks = self.truncate_contexts(
             context_texts,

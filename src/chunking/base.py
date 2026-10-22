@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from src.config import DEFAULT_MAX_CHUNK_SIZE
+from src.config import MAX_CHUNK_SIZE
 from src.models import MinimalSource
 
 
@@ -44,7 +44,7 @@ class Chunk:
 
 
 def validate_chunk(
-    chunk: Chunk, file_content: str, max_chunk_size: int = 2000
+    chunk: Chunk, file_content: str, max_chunk_size: int = MAX_CHUNK_SIZE
 ) -> bool:
     """Return True iff invariants hold.
 
@@ -73,6 +73,7 @@ def chunk_to_minimal_source(chunk: Chunk) -> MinimalSource:
     """Convert Chunk -> MinimalSource (helper for retriever)."""
 
     return MinimalSource(
+        text=chunk.text,
         file_path=chunk.file_path,
         first_character_index=chunk.first_character_index,
         last_character_index=chunk.last_character_index,
