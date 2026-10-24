@@ -4,6 +4,8 @@ import pickle
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+import json
+from dataclasses import asdict
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
@@ -15,11 +17,7 @@ from src.chunking import Chunk
 from src.chunking import chunk_markdown_file
 from src.chunking import chunk_python_file
 from src.chunking import chunk_text_file
-from src.config import (
-    MAX_CHUNK_SIZE,
-    INDEX_PATH,
-    RAW_DIR,
-)
+from src.config import MAX_CHUNK_SIZE, INDEX_PATH, RAW_DIR, CHUNKS_PATH
 from src.scanner import scan_files
 
 
@@ -49,7 +47,13 @@ def build_lexical_index(chunks: list[Chunk]) -> IndexData:
     )
 
 
-def build_semantic_index(chunks: list[Chunk]) -> np.ndarray:
+def build_semantic_index(
+    chunks: list[Chunk], chunks_path: Path = CHUNKS_PATH
+) -> np.ndarray:
+
+    Path(chunks_path).write_text(
+        json.dumps([chunk.__dict__ for chunk in chunks], indent=2)
+    )
     model = SentenceTransformer("all-MiniLM-L6-v2")
     return model.encode(
         [chunk.text for chunk in chunks],
@@ -79,8 +83,13 @@ def load_index(path: Path = INDEX_PATH) -> IndexData:
         raise FileNotFoundError(
             f"Index not found at {path}. Run `index --max_chunk_size 2000` first."
         )
-    with path.open("rb") as f:
-        return pickle.load(f)
+
+    suffix = path.suffix
+    if suffix == ".pkl":
+        with path.open("rb") as f:
+            return pickle.load(f)
+    else:
+        return np.load(path)
 
 
 def _chunk_file(path: Path, max_chunk_size: int) -> list[Chunk]:
@@ -118,7 +127,7 @@ def build_and_save_from_raw(
 
     lexica_index = build_lexical_index(chunks)
     semantic_index = build_semantic_index(chunks)
-
+    print(f"save chunks json file {CHUNKS_PATH}")
     save_lexical_index(lexica_index)
     save_semantic_index(semantic_index)
     print(
@@ -126,52 +135,52 @@ def build_and_save_from_raw(
     )
 
 
-if __name__ == "__main__":
-    # Demo: what build_index does step by step
-    # Run with: uv run python -m src.indexer
-    print("=== 1. build_index keeps not/none (your example) ===")
-    demo_chunks = [
-        Chunk(
-            text="if not user.is_active: return None",
-            file_path=f"{RAW_DIR}/a.py",
-            first_character_index=0,
-            last_character_index=33,
-        ),
-        Chunk(
-            text="if user.is_active: return user",
-            file_path=f"{RAW_DIR}/b.py",
-            first_character_index=0,
-            last_character_index=30,
-        ),
-    ]
-    print(f"Input chunks: {[c.text for c in demo_chunks]}")
-    demo_index = build_lexical_index(demo_chunks)
-    print(f"Our tokenize keeps 'not': {demo_index.tokenized_corpus}")
-    q = "not active"
-    scores = demo_index.bm25.get_scores(tokenize(q))
-    print(f"Query '{q}' tokens: {tokenize(q)}")
-    print(
-        f"BM25 scores: {scores}  (doc 0 with 'not' scores higher: {scores[0]:.3f} > {scores[1]:.3f})"
-    )
+# if __name__ == "__main__":
+#     # Demo: what build_index does step by step
+#     # Run with: uv run python -m src.indexer
+#     print("=== 1. build_index keeps not/none (your example) ===")
+#     demo_chunks = [
+#         Chunk(
+#             text="if not user.is_active: return None",
+#             file_path=f"{RAW_DIR}/a.py",
+#             first_character_index=0,
+#             last_character_index=33,
+#         ),
+#         Chunk(
+#             text="if user.is_active: return user",
+#             file_path=f"{RAW_DIR}/b.py",
+#             first_character_index=0,
+#             last_character_index=30,
+#         ),
+#     ]
+#     print(f"Input chunks: {[c.text for c in demo_chunks]}")
+#     demo_index = build_lexical_index(demo_chunks)
+#     print(f"Our tokenize keeps 'not': {demo_index.tokenized_corpus}")
+#     q = "not active"
+#     scores = demo_index.bm25.get_scores(tokenize(q))
+#     print(f"Query '{q}' tokens: {tokenize(q)}")
+#     print(
+#         f"BM25 scores: {scores}  (doc 0 with 'not' scores higher: {scores[0]:.3f} > {scores[1]:.3f})"
+#     )
 
-    # print("\n=== 2. Chunk distribution by file type ===")
-    # files_dict = scan_files(RAW_DIR)
-    # print({k: len(v) for k, v in files_dict.items()}, "total", sum(len(v) for v in files_dict.values()))
+# print("\n=== 2. Chunk distribution by file type ===")
+# files_dict = scan_files(RAW_DIR)
+# print({k: len(v) for k, v in files_dict.items()}, "total", sum(len(v) for v in files_dict.values()))
 
-    # print("\n=== 3. Full build from data/raw/ (14458 chunks expected) ===")
-    # print("Running build_and_save_from_raw(2000)...")
-    # build_and_save_from_raw(DEFAULT_MAX_CHUNK_SIZE)
+# print("\n=== 3. Full build from data/raw/ (14458 chunks expected) ===")
+# print("Running build_and_save_from_raw(2000)...")
+# build_and_save_from_raw(DEFAULT_MAX_CHUNK_SIZE)
 
-    # print("\n=== 4. Verify saved index ===")
-    # loaded = load_index()
-    # print(f"Loaded {len(loaded.chunks)} chunks, max len {max(len(c.text) for c in loaded.chunks)}")
-    # print(f"All <=2000: {all(len(c.text) <= 2000 for c in loaded.chunks)}")
-    # print(f"All <=DEFAULT_MAX_CHUNK_SIZE: {all(len(c.text) <= DEFAULT_MAX_CHUNK_SIZE for c in loaded.chunks)}")
-    # q2 = "vllm attention"
-    # scores2 = loaded.bm25.get_scores(tokenize(q2))
-    # top = int(scores2.argmax())
-    # print(f"Test query '{q2}' tokens: {tokenize(q2)}")
-    # print(f"Top hit [{top}] score {scores2[top]:.3f}: {loaded.chunks[top].file_path}")
-    # print(f"Text preview: {loaded.chunks[top].text[:200]!r}...")
-    # print(f"Index file size: {INDEX_PATH.stat().st_size / 1e6:.2f} MB")
-    # print("\nDone. Delete with: rm data/processed/index.pkl")
+# print("\n=== 4. Verify saved index ===")
+# loaded = load_index()
+# print(f"Loaded {len(loaded.chunks)} chunks, max len {max(len(c.text) for c in loaded.chunks)}")
+# print(f"All <=2000: {all(len(c.text) <= 2000 for c in loaded.chunks)}")
+# print(f"All <=DEFAULT_MAX_CHUNK_SIZE: {all(len(c.text) <= DEFAULT_MAX_CHUNK_SIZE for c in loaded.chunks)}")
+# q2 = "vllm attention"
+# scores2 = loaded.bm25.get_scores(tokenize(q2))
+# top = int(scores2.argmax())
+# print(f"Test query '{q2}' tokens: {tokenize(q2)}")
+# print(f"Top hit [{top}] score {scores2[top]:.3f}: {loaded.chunks[top].file_path}")
+# print(f"Text preview: {loaded.chunks[top].text[:200]!r}...")
+# print(f"Index file size: {INDEX_PATH.stat().st_size / 1e6:.2f} MB")
+# print("\nDone. Delete with: rm data/processed/index.pkl")

@@ -31,11 +31,14 @@ class CLI:
 
     def search(self, query: str, k: int = 10) -> None:
         searcher = Searcher()  # loads data/processed/index.pkl once
-        sources = searcher.search(query, k)
-        for chunk in sources:
-            print(
-                f"{chunk.file_path} [{chunk.first_character_index}: {chunk.last_character_index}]"
-            )
+        sources = searcher.lexical_searcha(query, k)
+        print(sources)
+        # top_indices = searcher.semantic_search(query, k)
+        # print(top_indices)
+        # for chunk in sources:
+        #     print(
+        #         f"{chunk.file_path} [{chunk.first_character_index}: {chunk.last_character_index}]"
+        #     )
 
     def search_dataset(
         self,
@@ -52,7 +55,9 @@ class CLI:
             questions, k
         )  # inside: for q in tqdm(questions): searcher.search(q.question, k) -> uses your cache tuple(tokens) -> ranked[:k]
         Path(save_directory).mkdir(parents=True, exist_ok=True)
-        (Path(save_directory) / Path(dataset_path).name).write_text(result.model_dump_json(indent=2))
+        (Path(save_directory) / Path(dataset_path).name).write_text(
+            result.model_dump_json(indent=2)
+        )
 
     def answer(self, query, k):
         searcher = Searcher()

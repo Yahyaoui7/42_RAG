@@ -15,7 +15,6 @@ def scan_files(root: Path = RAW_DIR) -> dict[str, list[Path]]:
     return files
 
 
-
 if __name__ == "__main__":
     files = scan_files()
     print(files["txt"][0])
