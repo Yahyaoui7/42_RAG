@@ -30,10 +30,10 @@ class CLI:
             sys.exit(1)
 
     def search(self, query: str, k: int = 10) -> None:
-        searcher = Searcher()  # loads data/processed/index.pkl once
-        searcher.lexical_searcha(query, k)
-        searcher.semantic_search(query, k)
-        result = searcher.hybrid_retrieval(k)
+        searcher = Searcher(k=k)  # loads data/processed/index.pkl once
+        lexical_result = searcher.lexical_searcha(query)
+        semantic_result = searcher.semantic_search(query)
+        result = searcher.hybrid_retrieval(lexical_result, semantic_result)
         for chunk in result:
             print(
                 f"{chunk.file_path} [{chunk.first_character_index}: {chunk.last_character_index}]"
@@ -48,10 +48,10 @@ class CLI:
         questions = RagDataset.model_validate_json(
             Path(dataset_path).read_text()
         ).rag_questions
-        searcher = Searcher()  # load index.pkl ONCE, not 100x
+        searcher = Searcher(k=k)  # load index.pkl ONCE, not 100x
 
         result = searcher.format_as_student_results(
-            questions, k
+            questions
         )  # inside: for q in tqdm(questions): searcher.search(q.question, k) -> uses your cache tuple(tokens) -> ranked[:k]
         Path(save_directory).mkdir(parents=True, exist_ok=True)
         (Path(save_directory) / Path(dataset_path).name).write_text(
