@@ -31,14 +31,13 @@ class CLI:
 
     def search(self, query: str, k: int = 10) -> None:
         searcher = Searcher()  # loads data/processed/index.pkl once
-        sources = searcher.lexical_searcha(query, k)
-        print(sources)
-        # top_indices = searcher.semantic_search(query, k)
-        # print(top_indices)
-        # for chunk in sources:
-        #     print(
-        #         f"{chunk.file_path} [{chunk.first_character_index}: {chunk.last_character_index}]"
-        #     )
+        searcher.lexical_searcha(query, k)
+        searcher.semantic_search(query, k)
+        result = searcher.hybrid_retrieval(k)
+        for chunk in result:
+            print(
+                f"{chunk.file_path} [{chunk.first_character_index}: {chunk.last_character_index}]"
+            )
 
     def search_dataset(
         self,

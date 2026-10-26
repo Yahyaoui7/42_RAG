@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 import numpy as np
 from src.chunking.base import chunk_to_minimal_source, Chunk
-from src.config import INDEX_PATH, CHUNKS_PATH
+from src.config import INDEX_PATH, SAVE_CHUNKS_PATH
 from src.indexer import IndexData, load_index
 from src.models import (
     MinimalSource,
@@ -24,7 +24,7 @@ class Searcher:
         )
         self.chunks_save = [
             MinimalSource.model_validate(chunk)
-            for chunk in json.loads(Path(CHUNKS_PATH).read_text())
+            for chunk in json.loads(Path(SAVE_CHUNKS_PATH).read_text())
         ]
 
     def lexical_searcha(self, query: str, k: int = 10) -> list[MinimalSource]:
@@ -43,26 +43,30 @@ class Searcher:
 
         result, scores = self.index_lexical_data.bm25.retrieve(tokens, k=k)
         ranked_indices = result[0].tolist()
+        score_indices = scores[0].tolist()
 
-        self.score_bm25 = [
-            (self.index_lexical_data.chunks[i].text, score)
-            for i, score in zip(ranked_indices, scores)
+        self.lexical_result = [
+            {
+                "id": self.index_lexical_data.chunks[i].id,
+                "score": float(score),
+                "chunk": self.index_lexical_data.chunks[i],
+            }
+            for i, score in zip(ranked_indices, score_indices)
         ]
-        for d in self.score_bm25:
-            print((d[0]))
-            print("\n-------------\n")
-        # data = [
-        #     chunk_to_minimal_source(self.index_lexical_data.chunks[i])
-        #     for i in ranked_indices
-        # ]
 
     def semantic_search(self, query: str, k: int = 10):
         model = SentenceTransformer("all-MiniLM-L6-v2")
         embading_query = model.encode(query, normalize_embeddings=True)
         scores = self.semantic_index @ embading_query
         top_indices = np.argsort(scores)[::-1][:k]
-        result = [(self.chunks_save[i].text, scores[i]) for i in top_indices]
-        return result
+        self.semantic_result = [
+            {
+                "id": self.index_lexical_data.chunks[i].id,
+                "score": float(scores[i]),
+                "chunk": self.chunks_save[i],
+            }
+            for i in top_indices
+        ]
 
     def format_as_student_results(
         self, questions: list[UnansweredQuestion], k: int
@@ -82,5 +86,25 @@ class Searcher:
             )
         return StudentSearchResults(search_results=results, k=k)
 
-    def hybrid_retrieval(bm25_score: tuple, semantic_scor: tuple):
-        pass
+    def hybrid_retrieval(self, k: int):
+        rrf_hybrid = {}
+        chunks_by_id = {}
+        constant = 60
+
+        for results in (self.lexical_result, self.semantic_result):
+            for rank, chunk in enumerate(results, start=1):
+                chunk_id = chunk["id"]
+                chunks_by_id[chunk_id] = chunk["chunk"]
+
+                score = 1 / (constant + rank)
+                rrf_hybrid[chunk_id] = rrf_hybrid.get(chunk_id, 0) + score
+
+        id_sorted = sorted(
+            rrf_hybrid.items(), key=lambda item: item[1], reverse=True
+        )
+
+        final_rank = [
+            chunks_by_id[chunk_id] for chunk_id, score in id_sorted[:k]
+        ]
+
+        return final_rank

@@ -2,12 +2,13 @@ from pathlib import Path
 
 from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
 
-from src.chunking.base import Chunk
+from src.models import MinimalSource
 from src.config import MAX_CHUNK_SIZE
+
 
 def chunk_python_file(
     file_path: Path, max_chunk_size: int = MAX_CHUNK_SIZE
-) -> list[Chunk]:
+) -> list[MinimalSource]:
     """Split .py file using LangChain RecursiveCharacterTextSplitter (Python).
 
     Preserves character indices via add_start_index=True.
@@ -32,7 +33,7 @@ def chunk_python_file(
     )
 
     documents = splitter.create_documents([content])
-    chunks: list[Chunk] = []
+    chunks: list[MinimalSource] = []
     for doc in documents:
         text: str = doc.page_content
         if not text.strip():
@@ -47,7 +48,7 @@ def chunk_python_file(
                 start = found
                 end = start + len(text)
         chunks.append(
-            Chunk(
+            MinimalSource(
                 text=text,
                 file_path=file_path_str,
                 first_character_index=start,

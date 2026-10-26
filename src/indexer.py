@@ -8,29 +8,28 @@ import json
 from dataclasses import asdict
 import numpy as np
 from sentence_transformers import SentenceTransformer
-
+from src.models import MinimalSource
 
 import bm25s
 from tqdm import tqdm
 
-from src.chunking import Chunk
 from src.chunking import chunk_markdown_file
 from src.chunking import chunk_python_file
 from src.chunking import chunk_text_file
-from src.config import MAX_CHUNK_SIZE, INDEX_PATH, RAW_DIR, CHUNKS_PATH
+from src.config import MAX_CHUNK_SIZE, INDEX_PATH, RAW_DIR, SAVE_CHUNKS_PATH
 from src.scanner import scan_files
 
 
 @dataclass
 class IndexData:
     bm25: bm25s.BM25 | None
-    chunks: list[Chunk]
+    chunks: list[MinimalSource]
     tokenized_corpus: list[
         list[str]
     ]  # kept for save/load round-trip and debugging
 
 
-def build_lexical_index(chunks: list[Chunk]) -> IndexData:
+def build_lexical_index(chunks: list[MinimalSource]) -> IndexData:
     """Build a BM25 index using our custom tokenizer."""
     tokenized_corpus = bm25s.tokenize([chunk.text for chunk in chunks])
 
@@ -48,11 +47,12 @@ def build_lexical_index(chunks: list[Chunk]) -> IndexData:
 
 
 def build_semantic_index(
-    chunks: list[Chunk], chunks_path: Path = CHUNKS_PATH
+    chunks: list[MinimalSource], save_chunks_path: Path = SAVE_CHUNKS_PATH
 ) -> np.ndarray:
-
-    Path(chunks_path).write_text(
-        json.dumps([chunk.__dict__ for chunk in chunks], indent=2)
+    Path(save_chunks_path).write_text(
+        json.dumps(
+            [chunk.model_dump(mode="json") for chunk in chunks], indent=2
+        )
     )
     model = SentenceTransformer("all-MiniLM-L6-v2")
     return model.encode(
@@ -92,7 +92,7 @@ def load_index(path: Path = INDEX_PATH) -> IndexData:
         return np.load(path)
 
 
-def _chunk_file(path: Path, max_chunk_size: int) -> list[Chunk]:
+def _chunk_file(path: Path, max_chunk_size: int) -> list[MinimalSource]:
     """Dispatch to the right langchain chunker by suffix, else generic text chunker."""
     suffix = Path(path).suffix.lower()
     if suffix == ".py":
@@ -117,7 +117,7 @@ def build_and_save_from_raw(
         all_files.extend(lst)
     all_files = sorted(all_files)
 
-    chunks: list[Chunk] = []
+    chunks: list[MinimalSource] = []
     for file_path in tqdm(all_files, desc="Chunking"):
         try:
             file_chunks = _chunk_file(file_path, max_chunk_size)
@@ -126,10 +126,11 @@ def build_and_save_from_raw(
             print(f"Skip {file_path}: {e}", file=sys.stderr)
 
     lexica_index = build_lexical_index(chunks)
-    semantic_index = build_semantic_index(chunks)
-    print(f"save chunks json file {CHUNKS_PATH}")
     save_lexical_index(lexica_index)
+
+    semantic_index = build_semantic_index(chunks)
     save_semantic_index(semantic_index)
+    print(f"save chunks json file {SAVE_CHUNKS_PATH}")
     print(
         f"Indexed {len(chunks)} chunks from {len(all_files)} files -> {INDEX_PATH}"
     )

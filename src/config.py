@@ -3,7 +3,7 @@ from pathlib import Path
 RAW_DIR: Path = Path("data/raw/vllm-0.10.1")
 PROCESSED_DIR: Path = Path("data/processed")
 INDEX_PATH: Path = PROCESSED_DIR / "lexical_index.pkl"
-CHUNKS_PATH: Path = PROCESSED_DIR / "chunks.json"
+SAVE_CHUNKS_PATH: Path = PROCESSED_DIR / "chunks.json"
 
 
 INDEX_DIR = "data/processed/"
