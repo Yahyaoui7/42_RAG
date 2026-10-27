@@ -42,7 +42,9 @@ class Searcher:
         ):
             return []
 
-        result, scores = self.index_lexical_data.bm25.retrieve(tokens, k=self.k)
+        result, scores = self.index_lexical_data.bm25.retrieve(
+            tokens, k=self.k
+        )
         ranked_indices = result[0].tolist()
         score_indices = scores[0].tolist()
 
@@ -59,7 +61,7 @@ class Searcher:
         model = SentenceTransformer("all-MiniLM-L6-v2")
         embading_query = model.encode(query, normalize_embeddings=True)
         scores = self.semantic_index @ embading_query
-        top_indices = np.argsort(scores)[::-1][:self.k]
+        top_indices = np.argsort(scores)[::-1][: self.k]
         return [
             {
                 "id": self.index_lexical_data.chunks[i].id,
@@ -78,7 +80,7 @@ class Searcher:
         for q in tqdm(questions):  # add tqdm here later
             lexical_result = self.lexical_searcha(q.question)
             semantic_result = self.semantic_search(q.question)
-            final_result = self.hybrid_retrieval(
+            final_result = self.rrf_hybrid_retrieval(
                 lexical_result, semantic_result
             )
             results.append(
@@ -90,7 +92,7 @@ class Searcher:
             )
         return StudentSearchResults(search_results=results, k=self.k)
 
-    def hybrid_retrieval(self, lexical_result, semantic_result):
+    def rrf_hybrid_retrieval(self, lexical_result, semantic_result):
         rrf_hybrid = {}
         chunks_by_id = {}
         constant = 60
@@ -108,7 +110,7 @@ class Searcher:
         )
 
         final_rank = [
-            chunks_by_id[chunk_id] for chunk_id, score in id_sorted[:self.k]
+            chunks_by_id[chunk_id] for chunk_id, score in id_sorted[: self.k]
         ]
 
         return final_rank

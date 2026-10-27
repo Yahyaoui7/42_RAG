@@ -13,17 +13,17 @@ RAW_DATA_DIR = "data/raw"
 TOP_K = 10
 MAX_CHUNK_SIZE = 2000
 
-DATASET_DIR = "data/datasets/private/"
+DATASET_DIR = "data/datasets/public/"
 
 
 SEARCH_DATASET_PATH = (
-    DATASET_DIR + "UnansweredQuestions/dataset_code_private.json"
+    DATASET_DIR + "UnansweredQuestions/dataset_code_public.json"
 )
 SEARCH_SAVE_DIRECTORY = "data/output/search_results/"
 
 
 ANSWERED_DATASET_PATH = (
-    DATASET_DIR + "AnsweredQuestions/dataset_code_private.json"
+    DATASET_DIR + "AnsweredQuestions/dataset_code_public.json"
 )
 
 ANSWER_SAVE_DIRECTORY = "data/output/search_results_and_answer/"

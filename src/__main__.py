@@ -33,7 +33,7 @@ class CLI:
         searcher = Searcher(k=k)  # loads data/processed/index.pkl once
         lexical_result = searcher.lexical_searcha(query)
         semantic_result = searcher.semantic_search(query)
-        result = searcher.hybrid_retrieval(lexical_result, semantic_result)
+        result = searcher.rrf_hybrid_retrieval(lexical_result, semantic_result)
         for chunk in result:
             print(
                 f"{chunk.file_path} [{chunk.first_character_index}: {chunk.last_character_index}]"
@@ -48,6 +48,7 @@ class CLI:
         questions = RagDataset.model_validate_json(
             Path(dataset_path).read_text()
         ).rag_questions
+
         searcher = Searcher(k=k)  # load index.pkl ONCE, not 100x
 
         result = searcher.format_as_student_results(
