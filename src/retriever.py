@@ -18,6 +18,7 @@ from sentence_transformers import SentenceTransformer
 
 class Searcher:
     def __init__(self, index_path: Path = INDEX_PATH, k: int = 10):
+        self.MiniLM_model = SentenceTransformer("all-MiniLM-L6-v2")
         self.k = k
         self.index_lexical_data = load_index(index_path)
         self.semantic_index = load_index(
@@ -58,8 +59,10 @@ class Searcher:
         ]
 
     def semantic_search(self, query: str):
-        model = SentenceTransformer("all-MiniLM-L6-v2")
-        embading_query = model.encode(query, normalize_embeddings=True)
+
+        embading_query = self.MiniLM_model.encode(
+            query, normalize_embeddings=True
+        )
         scores = self.semantic_index @ embading_query
         top_indices = np.argsort(scores)[::-1][: self.k]
         return [
@@ -80,7 +83,7 @@ class Searcher:
         for q in tqdm(questions):  # add tqdm here later
             lexical_result = self.lexical_searcha(q.question)
             semantic_result = self.semantic_search(q.question)
-            final_result = self.rrf_hybrid_retrieval(
+            final_result = self.wsf_hybrid_reriever(
                 lexical_result, semantic_result
             )
             results.append(
@@ -114,3 +117,43 @@ class Searcher:
         ]
 
         return final_rank
+
+    def wsf_hybrid_reriever(self, lexical_result, semantic_result):
+        wsf_hybrid = {}
+        chunks_by_id = {}
+
+        self.wsf_lexical(lexical_result)
+        self.wsf_semantic(semantic_result)
+
+        for result in (lexical_result, semantic_result):
+            for chunk in result:
+                chunk_id = chunk["id"]
+                chunks_by_id[chunk_id] = chunk["chunk"]
+
+                score = chunk["score"]
+                wsf_hybrid[chunk_id] = wsf_hybrid.get(chunk_id, 0) + score
+        id_sorted = sorted(
+            wsf_hybrid.items(), key=lambda item: item[1], reverse=True
+        )
+
+        final_rank = [
+            chunks_by_id[chunk_id] for chunk_id, score in id_sorted[: self.k]
+        ]
+        return final_rank
+
+    def wsf_lexical(self, lexical_result):
+        lex_min = min([chunk["score"] for chunk in lexical_result])
+        lex_max = max([chunk["score"] for chunk in lexical_result])
+
+        if lex_max == lex_min:
+            for chunk in lexical_result:
+                chunk["score"] = 0.0
+        else:
+            for chunk in lexical_result:
+                chunk["score"] = (
+                    (chunk["score"] - lex_min) / (lex_max - lex_min)
+                ) * 0.5
+
+    def wsf_semantic(self, semantic_result):
+        for chunk in semantic_result:
+            chunk["score"] = chunk["score"] * 0.5
