@@ -4,6 +4,7 @@ from src.models import (
     StudentSearchResultsAndAnswer,
     MinimalAnswer,
 )
+from src.caching import Caching
 from src.prompts import Prompt
 from tqdm import tqdm
 
@@ -71,19 +72,24 @@ class Generate:
     def answer_dataset(
         self,
         student_result: StudentSearchResults,
-        save_directory: Path,
+        save_result_path: Path,
     ) -> StudentSearchResultsAndAnswer:
 
         answered_results: list[MinimalAnswer] = []
+        cache = Caching(student_result.k)
 
         for retrieve in tqdm(student_result.search_results):
-            prompt = Prompt().build_prompt(
-                retrieve.question,
-                retrieve.retrieved_sources,
-            )
+            answer = cache.get_answer_from_cache(retrieve.question)
+            if not answer:
 
-            answer = self.generate_answer(prompt)
+                prompt = Prompt().build_prompt(
+                    retrieve.question,
+                    retrieve.retrieved_sources,
+                )
 
+                answer = self.generate_answer(prompt)
+
+                cache.save_query_and_answer(retrieve.question, answer)
             minimal = MinimalAnswer(
                 question_id=retrieve.question_id,
                 question=retrieve.question,
@@ -98,7 +104,6 @@ class Generate:
             k=student_result.k,
         )
 
-        Path(save_directory).mkdir(parents=True, exist_ok=True)
-        (Path(save_directory) / Path(student_result).name).write_text(
-            result.model_dump_json(indent=2)
-        )
+        Path(save_result_path).parent.mkdir(parents=True, exist_ok=True)
+
+        Path(save_result_path).write_text(result.model_dump_json(indent=2))

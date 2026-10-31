@@ -1,8 +1,8 @@
 from pathlib import Path
 import json
 import numpy as np
-from src.chunking.base import chunk_to_minimal_source, Chunk
-from src.config import INDEX_PATH, SAVE_CHUNKS_PATH
+from src.chunking.base import chunk_to_minimal_source
+from src.config import INDEX_PATH, PROCESSED_DIR
 from src.indexer import IndexData, load_index
 from src.models import (
     MinimalSource,
@@ -21,13 +21,6 @@ class Searcher:
         self.MiniLM_model = SentenceTransformer("all-MiniLM-L6-v2")
         self.k = k
         self.index_lexical_data = load_index(index_path)
-        self.semantic_index = load_index(
-            Path(index_path).with_name("semantic_index.npy")
-        )
-        self.chunks_save = [
-            MinimalSource.model_validate(chunk)
-            for chunk in json.loads(Path(SAVE_CHUNKS_PATH).read_text())
-        ]
 
     def lexical_searcha(self, query: str) -> list[MinimalSource]:
 
@@ -58,21 +51,42 @@ class Searcher:
             for i, score in zip(ranked_indices, score_indices)
         ]
 
-    def semantic_search(self, query: str):
+    def semantic_search(self, query: str, path=PROCESSED_DIR):
+        import chromadb
 
-        embading_query = self.MiniLM_model.encode(
+        query_vector = self.MiniLM_model.encode(
             query, normalize_embeddings=True
         )
-        scores = self.semantic_index @ embading_query
-        top_indices = np.argsort(scores)[::-1][: self.k]
-        return [
-            {
-                "id": self.index_lexical_data.chunks[i].id,
-                "score": float(scores[i]),
-                "chunk": self.chunks_save[i],
+        client = chromadb.PersistentClient(PROCESSED_DIR)
+        collection = client.get_collection(name="semantic_index")
+
+        results = collection.query(
+            query_embeddings=[query_vector.tolist()],
+            n_results=self.k,
+            include=["documents", "metadatas", "distances"],
+        )
+        finall_return = []
+        for i in range(len(results["ids"][0])):
+            chunk = {}
+            chunk_metadata = {}
+            metadata = results["metadatas"][0][i]
+
+            chunk_metadata = MinimalSource(
+                id=results["ids"][0][i],
+                text=results["documents"][0][i],
+                file_path=metadata["file_path"],
+                first_character_index=metadata["first_character_index"],
+                last_character_index=metadata["last_character_index"],
+            )
+
+            chunk = {
+                "id": results["ids"][0][i],
+                "score": results["distances"][0][i],
+                "chunk": chunk_metadata,
             }
-            for i in top_indices
-        ]
+            finall_return.append(chunk)
+
+        return finall_return
 
     def format_as_student_results(
         self, questions: list[UnansweredQuestion]
@@ -81,11 +95,7 @@ class Searcher:
         results = []
 
         for q in tqdm(questions):  # add tqdm here later
-            lexical_result = self.lexical_searcha(q.question)
-            semantic_result = self.semantic_search(q.question)
-            final_result = self.wsf_hybrid_reriever(
-                lexical_result, semantic_result
-            )
+            final_result = self.get_resources(q.question)
             results.append(
                 MinimalSearchResults(
                     question_id=q.question_id,
@@ -94,6 +104,15 @@ class Searcher:
                 )
             )
         return StudentSearchResults(search_results=results, k=self.k)
+
+    def get_resources(self, query):
+        lexical_result = self.lexical_searcha(query)
+
+        semantic_result = self.semantic_search(query)
+
+        result = self.wsf_hybrid_reriever(lexical_result, semantic_result)
+
+        return result
 
     def rrf_hybrid_retrieval(self, lexical_result, semantic_result):
         rrf_hybrid = {}

@@ -3,7 +3,7 @@ from pathlib import Path
 RAW_DIR: Path = Path("data/raw/vllm-0.10.1")
 PROCESSED_DIR: Path = Path("data/processed")
 INDEX_PATH: Path = PROCESSED_DIR / "lexical_index.pkl"
-SAVE_CHUNKS_PATH: Path = PROCESSED_DIR / "chunks.json"
+
 
 
 INDEX_DIR = "data/processed/"
@@ -13,17 +13,17 @@ RAW_DATA_DIR = "data/raw"
 TOP_K = 10
 MAX_CHUNK_SIZE = 2000
 
-DATASET_DIR = "data/datasets/private/"
+DATASET_DIR = "data/datasets/public/"
 
 
 SEARCH_DATASET_PATH = (
-    DATASET_DIR + "UnansweredQuestions/dataset_code_private.json"
+    DATASET_DIR + "UnansweredQuestions/dataset_docs_public.json"
 )
 SEARCH_SAVE_DIRECTORY = "data/output/search_results/"
 
 
 ANSWERED_DATASET_PATH = (
-    DATASET_DIR + "AnsweredQuestions/dataset_code_private.json"
+    DATASET_DIR + "AnsweredQuestions/dataset_docs_public.json"
 )
 
 ANSWER_SAVE_DIRECTORY = "data/output/search_results_and_answer/"
@@ -31,6 +31,9 @@ ANSWER_SAVE_DIRECTORY = "data/output/search_results_and_answer/"
 STUDENT_SEARCH_RESULTS_PATH = (
     SEARCH_SAVE_DIRECTORY + SEARCH_DATASET_PATH.split("/")[-1]
 )
+
+
+CACHE_PATH = "data/cache/query_cach.json"
 
 
 QWEN_MODEL_ID: str = "Qwen/Qwen3-0.6B"

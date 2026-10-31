@@ -5,7 +5,7 @@ from pathlib import Path
 MAX_CONTEXT_CHARS: int = 6000
 
 
-class Prompt():
+class Prompt:
 
     def load_chunk_text(self, chunk: MinimalSource) -> str:
         try:

@@ -18,6 +18,7 @@ from pathlib import Path
 import json
 from src.prompts import Prompt
 from src.generate import Generate
+from src.caching import Caching
 
 
 class CLI:
@@ -31,9 +32,8 @@ class CLI:
 
     def search(self, query: str, k: int = 10) -> None:
         searcher = Searcher(k=k)  # loads data/processed/index.pkl once
-        lexical_result = searcher.lexical_searcha(query)
-        semantic_result = searcher.semantic_search(query)
-        result = searcher.rrf_hybrid_retrieval(lexical_result, semantic_result)
+        result = searcher.get_resources(query)
+
         for chunk in result:
             print(
                 f"{chunk.file_path} [{chunk.first_character_index}: {chunk.last_character_index}]"
@@ -60,13 +60,21 @@ class CLI:
         )
 
     def answer(self, query, k):
-        searcher = Searcher()
-        model = Generate()
+        cache = Caching(k)
+        cache_answer = cache.get_answer_from_cache(query)
+        if cache_answer:
+            print("answer: ", cache_answer)
+        else:
 
-        sources = searcher.search(query, k)
-        prompt = Prompt().build_prompt(query, sources)
-        answer = model.generate_answer(prompt)
-        print("answer: ", answer)
+            searcher = Searcher()
+            model = Generate()
+
+            sources = searcher.get_resources(query)
+            prompt = Prompt().build_prompt(query, sources)
+            answer = model.generate_answer(prompt)
+
+            cache.save_query_and_answer(query, answer)
+            print("answer: ", answer)
 
     def answer_dataset(
         self,
@@ -78,7 +86,10 @@ class CLI:
             Path(student_search_results_path).read_text()
         )
         genreter = Generate()
-        genreter.answer_dataset(student_result, save_directory)
+        genreter.answer_dataset(
+            student_result,
+            (Path(save_directory) / Path(student_search_results_path).name),
+        )
 
     def evaluate(
         self,
@@ -101,3 +112,15 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# import hashlib
+
+# def get_file_hash(file_path):
+#     sha256 = hashlib.sha256()
+
+#     with open(file_path, "rb") as file:
+#         while chunk := file.read(4096):
+#             sha256.update(chunk)
+
+#     return sha256.hexdigest()

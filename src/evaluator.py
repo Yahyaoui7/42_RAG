@@ -4,7 +4,9 @@ from src.models import MinimalSource
 
 
 class Evaluator:
-    def __init__(self, student_search_results_path, dataset_path): #check if teh load became field
+    def __init__(
+        self, student_search_results_path, dataset_path
+    ):  # check if teh load became field
         self.student_result = json.loads(
             Path(student_search_results_path).read_text()
         )
@@ -31,6 +33,7 @@ class Evaluator:
     #             raise KeyError(
     #                 f"The question ID {question_id} is not in the dataset"
     #             )
+
     def check_is_valid(self, raw_source, student_source):
         if raw_source.file_path != student_source.file_path:
             return False
