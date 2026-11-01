@@ -111,7 +111,7 @@ class Searcher:
         semantic_result = self.semantic_search(query)
 
         result = self.wsf_hybrid_reriever(lexical_result, semantic_result)
-        # chunks = [chunk["chunk"] for chunk in lexical_result]
+        # chunks = [chunk["chunk"] for chunk in semantic_result]
         return result
 
     def rrf_hybrid_retrieval(self, lexical_result, semantic_result):
@@ -160,7 +160,7 @@ class Searcher:
         ]
         return final_rank
 
-    def wsf_lexical(self, lexical_result, weight=0):
+    def wsf_lexical(self, lexical_result, weight=0.8):
         lex_min = min(chunk["score"] for chunk in lexical_result)
         lex_max = max(chunk["score"] for chunk in lexical_result)
 
@@ -174,7 +174,7 @@ class Searcher:
 
             chunk["score"] *= weight
 
-    def wsf_semantic(self, semantic_result, weight=1):
+    def wsf_semantic(self, semantic_result, weight=0.2):
         for chunk in semantic_result:
             similarity = 1.0 - chunk["score"]
             chunk["score"] = similarity * weight

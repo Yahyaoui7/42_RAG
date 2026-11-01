@@ -147,12 +147,12 @@ def build_and_save_from_raw(
     for file_path in tqdm(all_files, desc="Chunking"):
         data = is_file_dirty(file_path)
         if not data:
-            file_is_changed.append(file_path)
+            # file_is_changed.append(file_path)
             try:
                 file_chunks = _chunk_file(file_path, max_chunk_size)
                 chunks.extend(file_chunks)
                 new_chunck.extend(file_chunks)
-
+                remove_modifie_file(file_path)
                 save_metadata_file(file_path, file_chunks)
 
             except Exception as e:
@@ -235,6 +235,21 @@ def calculate_hash(file_path: Path) -> str:
             sha256.update(block)
 
     return sha256.hexdigest()
+
+
+def remove_modifie_file(file_path, save_path=FILE_METADATA):
+    client = chromadb.PersistentClient(path=PROCESSED_DIR)
+
+    collection = client.get_or_create_collection(name="semantic_index")
+
+    with open(save_path, "r") as file:
+        manifest = json.load(file)
+
+    collection.delete(where={"file_path": file_path})
+    del manifest[str(file_path)]
+
+    with open(save_path, "w") as file:
+        json.dump(manifest, file, indent=4)
 
 
 def remove_removed_file(all_files_path, save_path=FILE_METADATA):
