@@ -5,7 +5,6 @@ PROCESSED_DIR: Path = Path("data/processed")
 INDEX_PATH: Path = PROCESSED_DIR / "lexical_index.pkl"
 
 
-
 INDEX_DIR = "data/processed/"
 RAW_DATA_DIR = "data/raw"
 
@@ -34,7 +33,7 @@ STUDENT_SEARCH_RESULTS_PATH = (
 
 
 CACHE_PATH = "data/cache/query_cach.json"
-
+FILE_METADATA = PROCESSED_DIR / "manifest.json"
 
 QWEN_MODEL_ID: str = "Qwen/Qwen3-0.6B"
 QWEN_MAX_NEW_TOKENS: int = 300

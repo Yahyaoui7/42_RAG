@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pickle
+import chromadb
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +22,7 @@ from src.config import (
     INDEX_PATH,
     RAW_DIR,
     PROCESSED_DIR,
+    FILE_METADATA,
 )
 from src.scanner import scan_files
 
@@ -62,7 +64,6 @@ def build_semantic_index(chunks: list[MinimalSource]) -> np.ndarray:
 
 
 def save_semantic_index(vectors, chunks, path: Path = PROCESSED_DIR):
-    import chromadb
 
     client = chromadb.PersistentClient(path=path)
 
@@ -138,21 +139,124 @@ def build_and_save_from_raw(
     all_files = sorted(all_files)
 
     chunks: list[MinimalSource] = []
+    file_is_changed = []
+    new_chunck = []
+
+    remove_removed_file(all_files)
+
     for file_path in tqdm(all_files, desc="Chunking"):
-        try:
-            file_chunks = _chunk_file(file_path, max_chunk_size)
-            chunks.extend(file_chunks)
-        except Exception as e:
-            print(f"Skip {file_path}: {e}", file=sys.stderr)
+        data = is_file_dirty(file_path)
+        if not data:
+            print("fsdfhjsdfjsdjfjdfhfsfdfsadf")
+            file_is_changed.append(file_path)
+            try:
+                file_chunks = _chunk_file(file_path, max_chunk_size)
+                chunks.extend(file_chunks)
+                new_chunck.extend(file_chunks)
+
+                save_metadata_file(file_path, file_chunks)
+
+            except Exception as e:
+                print(f"Skip {file_path}: {e}", file=sys.stderr)
+
+        else:
+            chunks.extend(MinimalSource(**chunk) for chunk in data["chunks"])
 
     lexica_index = build_lexical_index(chunks)
     save_lexical_index(lexica_index)
 
-    semantic_index = build_semantic_index(chunks)
-    save_semantic_index(semantic_index, chunks)
+    semantic_index = build_semantic_index(new_chunck)
+    save_semantic_index(semantic_index, new_chunck)
 
     print(
         f"Indexed {len(chunks)} chunks from {len(all_files)} files -> {INDEX_PATH}"
     )
 
-    # def is_file_dirty(self, path_file):
+
+def save_metadata_file(file_path, chunks, save_path=FILE_METADATA):
+    if os.path.exists(save_path):
+        with open(save_path, "r") as file:
+            data = json.load(file)
+    else:
+        data = {}
+
+    meta_data = {
+        "mtime": get_time(file_path),
+        "hash": calculate_hash(file_path),
+        "chunks": [chunk.model_dump(mode="json") for chunk in chunks],
+    }
+
+    data[str(file_path)] = meta_data
+
+    with open(save_path, "w") as file:
+        json.dump(data, file, indent=4)
+
+
+def is_file_dirty(file_path, save_path=FILE_METADATA):
+    if not Path(save_path).exists():
+        return False
+
+    file_path = str(file_path)
+
+    with open(save_path, "r") as file:
+        manifest = json.load(file)
+
+    if file_path not in manifest:
+        return False
+
+    metadata = manifest[file_path]
+    current_mtime = get_time(file_path)
+
+    if metadata["mtime"] != current_mtime:
+        current_hash = calculate_hash(Path(file_path))
+
+        if metadata["hash"] != current_hash:
+            return False
+
+        # Content is unchanged; only the modification time changed.
+        metadata["mtime"] = current_mtime
+
+        with open(save_path, "w") as file:
+            json.dump(manifest, file, indent=4)
+
+    return metadata
+
+
+def get_time(file_path):
+    return Path(file_path).stat().st_mtime
+
+
+def calculate_hash(file_path: Path) -> str:
+    import hashlib
+
+    sha256 = hashlib.sha256()
+
+    with file_path.open("rb") as file:
+        for block in iter(lambda: file.read(4096), b""):
+            sha256.update(block)
+
+    return sha256.hexdigest()
+
+
+def remove_removed_file(all_files_path, save_path=FILE_METADATA):
+    client = chromadb.PersistentClient(path=PROCESSED_DIR)
+
+    collection = client.get_or_create_collection(name="semantic_index")
+
+    if not Path(save_path).exists():
+        return None
+
+    with open(save_path, "r") as file:
+        manifest = json.load(file)
+
+    manifest_files = set(manifest.keys())
+    current_files = {str(path) for path in all_files_path}
+
+    deleted_files = manifest_files - current_files
+
+    for file_path in deleted_files:
+        collection.delete(where={"file_path": file_path})
+        del manifest[str(file_path)]
+
+    with open(save_path, "w") as file:
+        json.dump(manifest, file, indent=4)

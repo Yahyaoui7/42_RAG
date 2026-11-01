@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 import numpy as np
 from src.chunking.base import chunk_to_minimal_source
-from src.config import INDEX_PATH, PROCESSED_DIR
+from src.config import INDEX_PATH, PROCESSED_DIR, FILE_METADATA
 from src.indexer import IndexData, load_index
 from src.models import (
     MinimalSource,
@@ -81,7 +81,7 @@ class Searcher:
 
             chunk = {
                 "id": results["ids"][0][i],
-                "score": results["distances"][0][i],
+                "score": 1.0 - (results["distances"][0][i] / 2.0),
                 "chunk": chunk_metadata,
             }
             finall_return.append(chunk)
