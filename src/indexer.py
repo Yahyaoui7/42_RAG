@@ -73,7 +73,7 @@ def save_semantic_index(vectors, chunks, path: Path = PROCESSED_DIR):
     for i in range(0, len(chunks), batch_size):
         batch = chunks[i : i + batch_size]
 
-        collection.add(
+        collection.upsert(
             ids=[str(chunk.id) for chunk in batch],
             documents=[chunk.text for chunk in batch],
             embeddings=vectors[i : i + batch_size].tolist(),
@@ -147,7 +147,6 @@ def build_and_save_from_raw(
     for file_path in tqdm(all_files, desc="Chunking"):
         data = is_file_dirty(file_path)
         if not data:
-            print("fsdfhjsdfjsdjfjdfhfsfdfsadf")
             file_is_changed.append(file_path)
             try:
                 file_chunks = _chunk_file(file_path, max_chunk_size)

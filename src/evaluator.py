@@ -16,24 +16,6 @@ class Evaluator:
             for question in self.student_result["search_results"]
         }
 
-    # def get_help_dict(self):
-    #     self.help_dict = {}
-
-    #     for result in self.student_result["search_results"]:
-    #         question_id = result["question_id"]
-    #         found = False
-
-    #         for data in self.dataset_result["rag_questions"]:
-    #             if question_id == data["question_id"]:
-    #                 self.help_dict[question_id] = result["retrieved_sources"]
-    #                 found = True
-    #                 break
-
-    #         if not found:
-    #             raise KeyError(
-    #                 f"The question ID {question_id} is not in the dataset"
-    #             )
-
     def check_is_valid(self, raw_source, student_source):
         if raw_source.file_path != student_source.file_path:
             return False
