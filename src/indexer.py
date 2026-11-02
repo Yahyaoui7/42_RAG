@@ -36,241 +36,235 @@ class IndexData:
     ]  # kept for save/load round-trip and debugging
 
 
-def build_lexical_index(chunks: list[MinimalSource]) -> IndexData:
-    """Build a BM25 index using our custom tokenizer."""
-    tokenized_corpus = bm25s.tokenize([chunk.text for chunk in chunks])
+class Index:
+    def __init__(self):
+        self.model = SentenceTransformer("all-MiniLM-L6-v2")
 
-    if not tokenized_corpus or not any(tokenized_corpus):
-        return IndexData(bm25=None, chunks=chunks, tokenized_corpus=[])
-
-    retriever = bm25s.BM25()
-    retriever.index(tokenized_corpus, show_progress=False)
-
-    return IndexData(
-        bm25=retriever,
-        chunks=chunks,
-        tokenized_corpus=tokenized_corpus,
-    )
-
-
-def build_semantic_index(chunks: list[MinimalSource]) -> np.ndarray:
-
-    model = SentenceTransformer("all-MiniLM-L6-v2")
-    return model.encode(
-        [chunk.text for chunk in chunks],
-        normalize_embeddings=True,
-        show_progress_bar=True,
-    )
-
-
-def save_semantic_index(vectors, chunks, path: Path = PROCESSED_DIR):
-
-    client = chromadb.PersistentClient(path=path)
-
-    collection = client.get_or_create_collection(name="semantic_index")
-    batch_size = 5000
-
-    for i in range(0, len(chunks), batch_size):
-        batch = chunks[i : i + batch_size]
-
-        collection.upsert(
-            ids=[str(chunk.id) for chunk in batch],
-            documents=[chunk.text for chunk in batch],
-            embeddings=vectors[i : i + batch_size].tolist(),
-            metadatas=[
-                {
-                    "file_path": chunk.file_path,
-                    "first_character_index": chunk.first_character_index,
-                    "last_character_index": chunk.last_character_index,
-                }
-                for chunk in batch
-            ],
+        client = chromadb.PersistentClient(path=PROCESSED_DIR)
+        self.collection = client.get_or_create_collection(
+            name="semantic_index"
         )
 
+    def build_lexical_index(self, chunks: list[MinimalSource]) -> IndexData:
+        """Build a BM25 index using our custom tokenizer."""
+        tokenized_corpus = bm25s.tokenize([chunk.text for chunk in chunks])
 
-def save_lexical_index(index: IndexData, path: Path = INDEX_PATH) -> None:
-    """Pickle IndexData to path (protocol 4). Ensures parent exists."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("wb") as f:
-        pickle.dump(index, f, protocol=4)
+        if not tokenized_corpus or not any(tokenized_corpus):
+            return IndexData(bm25=None, chunks=chunks, tokenized_corpus=[])
 
+        retriever = bm25s.BM25()
+        retriever.index(tokenized_corpus, show_progress=False)
 
-def load_index(path: Path = INDEX_PATH) -> IndexData:
-    """Load IndexData from pickle. Raises FileNotFoundError with clear message if missing."""
-    path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Index not found at {path}. Run `index --max_chunk_size 2000` first."
+        return IndexData(
+            bm25=retriever,
+            chunks=chunks,
+            tokenized_corpus=tokenized_corpus,
         )
 
-    suffix = path.suffix
-    if suffix == ".pkl":
-        with path.open("rb") as f:
-            return pickle.load(f)
-    else:
-        return np.load(path)
+    def build_semantic_index(self, chunks: list[MinimalSource]) -> np.ndarray:
+        return self.model.encode(
+            [chunk.text for chunk in chunks],
+            normalize_embeddings=True,
+            show_progress_bar=True,
+        )
 
+    def save_semantic_index(self, vectors, chunks, path: Path = PROCESSED_DIR):
+        batch_size = 5000
 
-def _chunk_file(path: Path, max_chunk_size: int) -> list[MinimalSource]:
-    """Dispatch to the right langchain chunker by suffix, else generic text chunker."""
-    suffix = Path(path).suffix.lower()
-    if suffix == ".py":
-        return chunk_python_file(path, max_chunk_size=max_chunk_size)
-    elif suffix == ".md":
-        return chunk_markdown_file(path, max_chunk_size=max_chunk_size)
-    else:
-        return chunk_text_file(path, max_chunk_size=max_chunk_size)
+        for i in range(0, len(chunks), batch_size):
+            batch = chunks[i : i + batch_size]
 
+            self.collection.upsert(
+                ids=[str(chunk.id) for chunk in batch],
+                documents=[chunk.text for chunk in batch],
+                embeddings=vectors[i : i + batch_size].tolist(),
+                metadatas=[
+                    {
+                        "file_path": str(chunk.file_path),
+                        "first_character_index": chunk.first_character_index,
+                        "last_character_index": chunk.last_character_index,
+                    }
+                    for chunk in batch
+                ],
+            )
 
-def build_and_save_from_raw(
-    max_chunk_size: int = MAX_CHUNK_SIZE,
-) -> None:
-    """Scan data/raw/, chunk every file via langchain, build BM25, save to INDEX_PATH.
+    def save_lexical_index(
+        self, index: IndexData, path: Path = INDEX_PATH
+    ) -> None:
+        """Pickle IndexData to path (protocol 4). Ensures parent exists."""
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("wb") as f:
+            pickle.dump(index, f, protocol=4)
 
-    Per-file try/except — one bad file never aborts the whole index.
-    Asserts len(c.text) <= min(max_chunk_size, 2000) before save (moulinette limit).
-    """
-    files_dict = scan_files(RAW_DIR)
+    def load_index(self, path: Path = INDEX_PATH) -> IndexData:
+        """Load IndexData from pickle. Raises FileNotFoundError with clear message if missing."""
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Index not found at {path}. Run `index --max_chunk_size 2000` first."
+            )
 
-    all_files: list[Path] = []
-    for lst in files_dict.values():
-        all_files.extend(lst)
-    all_files = sorted(all_files)
-
-    chunks: list[MinimalSource] = []
-    file_is_changed = []
-    new_chunck = []
-
-    remove_removed_file(all_files)
-
-    for file_path in tqdm(all_files, desc="Chunking"):
-        data = is_file_dirty(file_path)
-        if not data:
-            # file_is_changed.append(file_path)
-            try:
-                file_chunks = _chunk_file(file_path, max_chunk_size)
-                chunks.extend(file_chunks)
-                new_chunck.extend(file_chunks)
-                remove_modifie_file(file_path)
-                save_metadata_file(file_path, file_chunks)
-
-            except Exception as e:
-                print(f"Skip {file_path}: {e}", file=sys.stderr)
-
+        suffix = path.suffix
+        if suffix == ".pkl":
+            with path.open("rb") as f:
+                return pickle.load(f)
         else:
-            chunks.extend(MinimalSource(**chunk) for chunk in data["chunks"])
+            return np.load(path)
 
-    lexica_index = build_lexical_index(chunks)
-    save_lexical_index(lexica_index)
+    def _chunk_file(
+        self, path: Path, max_chunk_size: int
+    ) -> list[MinimalSource]:
+        """Dispatch to the right langchain chunker by suffix, else generic text chunker."""
+        suffix = Path(path).suffix.lower()
+        if suffix == ".py":
+            return chunk_python_file(path, max_chunk_size=max_chunk_size)
+        elif suffix == ".md":
+            return chunk_markdown_file(path, max_chunk_size=max_chunk_size)
+        else:
+            return chunk_text_file(path, max_chunk_size=max_chunk_size)
 
-    semantic_index = build_semantic_index(new_chunck)
-    save_semantic_index(semantic_index, new_chunck)
+    def build_and_save_from_raw(
+        self,
+        max_chunk_size: int = MAX_CHUNK_SIZE,
+    ) -> None:
+        """Scan data/raw/, chunk every file via langchain, build BM25, save to INDEX_PATH.
 
-    print(
-        f"Indexed {len(chunks)} chunks from {len(all_files)} files -> {INDEX_PATH}"
-    )
+        Per-file try/except — one bad file never aborts the whole index.
+        Asserts len(c.text) <= min(max_chunk_size, 2000) before save (moulinette limit).
+        """
+        files_dict = scan_files(RAW_DIR)
 
+        all_files: list[Path] = []
+        for lst in files_dict.values():
+            all_files.extend(lst)
+        all_files = sorted(all_files)
 
-def save_metadata_file(file_path, chunks, save_path=FILE_METADATA):
-    if os.path.exists(save_path):
-        with open(save_path, "r") as file:
-            data = json.load(file)
-    else:
-        data = {}
+        chunks: list[MinimalSource] = []
+        # file_is_changed = []
+        new_chunck = []
 
-    meta_data = {
-        "mtime": get_time(file_path),
-        "hash": calculate_hash(file_path),
-        "chunks": [chunk.model_dump(mode="json") for chunk in chunks],
-    }
+        self.remove_removed_file(all_files)
 
-    data[str(file_path)] = meta_data
+        for file_path in tqdm(all_files, desc="Chunking"):
+            data = self.is_file_dirty(file_path)
+            if not data:
+                # file_is_changed.append(file_path)
+                try:
+                    file_chunks = self._chunk_file(file_path, max_chunk_size)
+                    chunks.extend(file_chunks)
+                    new_chunck.extend(file_chunks)
+                    self.remove_modifie_file(file_path)
+                    self.save_metadata_file(file_path, file_chunks)
 
-    with open(save_path, "w") as file:
-        json.dump(data, file, indent=4)
+                except Exception as e:
+                    print(f"Skip {file_path}: {e}", file=sys.stderr)
 
+            else:
+                chunks.extend(
+                    MinimalSource(**chunk) for chunk in data["chunks"]
+                )
 
-def is_file_dirty(file_path, save_path=FILE_METADATA):
-    if not Path(save_path).exists():
-        return False
+        lexica_index = self.build_lexical_index(chunks)
+        self.save_lexical_index(lexica_index)
 
-    file_path = str(file_path)
+        semantic_index = self.build_semantic_index(new_chunck)
+        self.save_semantic_index(semantic_index, new_chunck)
 
-    with open(save_path, "r") as file:
-        manifest = json.load(file)
+        print(
+            f"Indexed {len(chunks)} chunks from {len(all_files)} files -> {INDEX_PATH}"
+        )
 
-    if file_path not in manifest:
-        return False
+    def save_metadata_file(self, file_path, chunks, save_path=FILE_METADATA):
+        if os.path.exists(save_path):
+            with open(save_path, "r") as file:
+                data = json.load(file)
+        else:
+            data = {}
 
-    metadata = manifest[file_path]
-    current_mtime = get_time(file_path)
+        meta_data = {
+            "mtime": self.get_time(file_path),
+            "hash": self.calculate_hash(file_path),
+            "chunks": [chunk.model_dump(mode="json") for chunk in chunks],
+        }
 
-    if metadata["mtime"] != current_mtime:
-        current_hash = calculate_hash(Path(file_path))
+        data[str(file_path)] = meta_data
 
-        if metadata["hash"] != current_hash:
+        with open(save_path, "w") as file:
+            json.dump(data, file, indent=4)
+
+    def is_file_dirty(self, file_path, save_path=FILE_METADATA):
+        if not Path(save_path).exists():
             return False
 
-        # Content is unchanged; only the modification time changed.
-        metadata["mtime"] = current_mtime
+        file_path = str(file_path)
+
+        with open(save_path, "r") as file:
+            manifest = json.load(file)
+
+        if file_path not in manifest:
+            return False
+
+        metadata = manifest[file_path]
+        current_mtime = self.get_time(file_path)
+
+        if metadata["mtime"] != current_mtime:
+            current_hash = self.calculate_hash(Path(file_path))
+
+            if metadata["hash"] != current_hash:
+                return False
+
+            # Content is unchanged; only the modification time changed.
+            metadata["mtime"] = current_mtime
+
+            with open(save_path, "w") as file:
+                json.dump(manifest, file, indent=4)
+
+        return metadata
+
+    def get_time(self, file_path):
+        return Path(file_path).stat().st_mtime
+
+    def calculate_hash(self, file_path: Path) -> str:
+        import hashlib
+
+        sha256 = hashlib.sha256()
+
+        with file_path.open("rb") as file:
+            for block in iter(lambda: file.read(4096), b""):
+                sha256.update(block)
+
+        return sha256.hexdigest()
+
+    def remove_modifie_file(self, file_path, save_path=FILE_METADATA):
+
+        if not Path(save_path).exists():
+            return None
+        with open(save_path, "r") as file:
+            manifest = json.load(file)
+
+        self.collection.delete(where={"file_path": str(file_path)})
+        manifest.pop(str(file_path), None)
 
         with open(save_path, "w") as file:
             json.dump(manifest, file, indent=4)
 
-    return metadata
+    def remove_removed_file(self, all_files_path, save_path=FILE_METADATA):
 
+        if not Path(save_path).exists():
+            return None
 
-def get_time(file_path):
-    return Path(file_path).stat().st_mtime
+        with open(save_path, "r") as file:
+            manifest = json.load(file)
 
+        manifest_files = set(manifest.keys())
+        current_files = {str(path) for path in all_files_path}
 
-def calculate_hash(file_path: Path) -> str:
-    import hashlib
+        deleted_files = manifest_files - current_files
 
-    sha256 = hashlib.sha256()
+        for file_path in deleted_files:
+            self.collection.delete(where={"file_path": str(file_path)})
+            manifest.pop(str(file_path), None)
 
-    with file_path.open("rb") as file:
-        for block in iter(lambda: file.read(4096), b""):
-            sha256.update(block)
-
-    return sha256.hexdigest()
-
-
-def remove_modifie_file(file_path, save_path=FILE_METADATA):
-    client = chromadb.PersistentClient(path=PROCESSED_DIR)
-
-    collection = client.get_or_create_collection(name="semantic_index")
-
-    with open(save_path, "r") as file:
-        manifest = json.load(file)
-
-    collection.delete(where={"file_path": file_path})
-    del manifest[str(file_path)]
-
-    with open(save_path, "w") as file:
-        json.dump(manifest, file, indent=4)
-
-
-def remove_removed_file(all_files_path, save_path=FILE_METADATA):
-    client = chromadb.PersistentClient(path=PROCESSED_DIR)
-
-    collection = client.get_or_create_collection(name="semantic_index")
-
-    if not Path(save_path).exists():
-        return None
-
-    with open(save_path, "r") as file:
-        manifest = json.load(file)
-
-    manifest_files = set(manifest.keys())
-    current_files = {str(path) for path in all_files_path}
-
-    deleted_files = manifest_files - current_files
-
-    for file_path in deleted_files:
-        collection.delete(where={"file_path": file_path})
-        del manifest[str(file_path)]
-
-    with open(save_path, "w") as file:
-        json.dump(manifest, file, indent=4)
+        with open(save_path, "w") as file:
+            json.dump(manifest, file, indent=4)

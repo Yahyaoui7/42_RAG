@@ -3,7 +3,7 @@ import json
 import numpy as np
 from src.chunking.base import chunk_to_minimal_source
 from src.config import INDEX_PATH, PROCESSED_DIR, FILE_METADATA
-from src.indexer import IndexData, load_index
+from src.indexer import IndexData, Index
 from src.models import (
     MinimalSource,
     MinimalSearchResults,
@@ -14,13 +14,15 @@ from tqdm import tqdm
 import bm25s
 import numpy as np
 from sentence_transformers import SentenceTransformer
+import chromadb
 
 
 class Searcher:
     def __init__(self, index_path: Path = INDEX_PATH, k: int = 10):
         self.MiniLM_model = SentenceTransformer("all-MiniLM-L6-v2")
         self.k = k
-        self.index_lexical_data = load_index(index_path)
+        self.index = Index()
+        self.index_lexical_data = self.index.load_index(index_path)
 
     def lexical_searcha(self, query: str) -> list[MinimalSource]:
 
@@ -52,15 +54,12 @@ class Searcher:
         ]
 
     def semantic_search(self, query: str, path=PROCESSED_DIR):
-        import chromadb
 
         query_vector = self.MiniLM_model.encode(
             query, normalize_embeddings=True
         )
-        client = chromadb.PersistentClient(PROCESSED_DIR)
-        collection = client.get_collection(name="semantic_index")
 
-        results = collection.query(
+        results = self.index.collection.query(
             query_embeddings=[query_vector.tolist()],
             n_results=self.k,
             include=["documents", "metadatas", "distances"],
