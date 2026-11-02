@@ -9,7 +9,7 @@ INDEX_DIR = "data/processed/"
 RAW_DATA_DIR = "data/raw"
 
 
-TOP_K = 20
+TOP_K = 10
 MAX_CHUNK_SIZE = 2000
 
 DATASET_DIR = "data/datasets/public/"

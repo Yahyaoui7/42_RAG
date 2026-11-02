@@ -160,6 +160,8 @@ class Searcher:
         return final_rank
 
     def wsf_lexical(self, lexical_result, weight=0.8):
+        if not lexical_result:
+            return
         lex_min = min(chunk["score"] for chunk in lexical_result)
         lex_max = max(chunk["score"] for chunk in lexical_result)
 
@@ -174,6 +176,8 @@ class Searcher:
             chunk["score"] *= weight
 
     def wsf_semantic(self, semantic_result, weight=0.2):
+        if not semantic_result:
+            return
         for chunk in semantic_result:
             similarity = 1.0 - chunk["score"]
             chunk["score"] = similarity * weight
