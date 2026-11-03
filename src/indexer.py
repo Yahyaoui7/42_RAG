@@ -26,6 +26,8 @@ from src.config import (
 )
 from src.scanner import scan_files
 
+from time import perf_counter
+
 
 @dataclass
 class IndexData:
@@ -44,6 +46,11 @@ class Index:
         self.collection = client.get_or_create_collection(
             name="semantic_index"
         )
+        if Path(FILE_METADATA).exists():
+            with open(FILE_METADATA, "r") as file:
+                self.manifest = json.load(file)
+        else:
+            self.manifest = {}
 
     def build_lexical_index(self, chunks: list[MinimalSource]) -> IndexData:
         """Build a BM25 index using our custom tokenizer."""
@@ -64,11 +71,15 @@ class Index:
     def build_semantic_index(self, chunks: list[MinimalSource]) -> np.ndarray:
         return self.model.encode(
             [chunk.text for chunk in chunks],
-            normalize_embeddings=True,
             show_progress_bar=True,
         )
 
-    def save_semantic_index(self, vectors: np.ndarray, chunks: list[MinimalSource], path: Path = PROCESSED_DIR) -> None:
+    def save_semantic_index(
+        self,
+        vectors: np.ndarray,
+        chunks: list[MinimalSource],
+        path: Path = PROCESSED_DIR,
+    ) -> None:
         batch_size = 5000
 
         for i in range(0, len(chunks), batch_size):
@@ -128,11 +139,7 @@ class Index:
         self,
         max_chunk_size: int = MAX_CHUNK_SIZE,
     ) -> None:
-        """Scan data/raw/, chunk every file via langchain, build BM25, save to INDEX_PATH.
 
-        Per-file try/except — one bad file never aborts the whole index.
-        Asserts len(c.text) <= min(max_chunk_size, 2000) before save (moulinette limit).
-        """
         files_dict = scan_files(RAW_DIR)
 
         all_files: list[Path] = []
@@ -141,20 +148,24 @@ class Index:
         all_files = sorted(all_files)
 
         chunks: list[MinimalSource] = []
-        # file_is_changed = []
         new_chunck = []
 
         self.remove_removed_file(all_files)
 
+        loop = perf_counter()
         for file_path in tqdm(all_files, desc="Chunking"):
+
             data = self.is_file_dirty(file_path)
+
             if not data:
-                # file_is_changed.append(file_path)
                 try:
+
                     file_chunks = self._chunk_file(file_path, max_chunk_size)
                     chunks.extend(file_chunks)
                     new_chunck.extend(file_chunks)
+
                     self.remove_modifie_file(file_path)
+
                     self.save_metadata_file(file_path, file_chunks)
 
                 except Exception as e:
@@ -164,36 +175,39 @@ class Index:
                 chunks.extend(
                     MinimalSource(**chunk) for chunk in data["chunks"]
                 )
+                ("Chunking and metadata", loop)
+
+        self._save_manifest_file()
 
         lexica_index = self.build_lexical_index(chunks)
+
         self.save_lexical_index(lexica_index)
 
         semantic_index = self.build_semantic_index(new_chunck)
+
         self.save_semantic_index(semantic_index, new_chunck)
 
         print(
-            f"Indexed {len(chunks)} chunks from {len(all_files)} files -> {INDEX_PATH}"
+            f"Indexed {len(chunks)} chunks from "
+            f"{len(all_files)} files -> {INDEX_PATH}"
         )
 
-    def save_metadata_file(self, file_path: Path, chunks: list[MinimalSource], save_path: Path = FILE_METADATA) -> None:
-        if os.path.exists(save_path):
-            with open(save_path, "r") as file:
-                data = json.load(file)
-        else:
-            data = {}
+    def save_metadata_file(
+        self,
+        file_path: Path,
+        chunks: list[MinimalSource],
+    ) -> None:
 
         meta_data = {
             "mtime": self.get_time(file_path),
             "hash": self.calculate_hash(file_path),
             "chunks": [chunk.model_dump(mode="json") for chunk in chunks],
         }
+        self.manifest[str(file_path)] = meta_data
 
-        data[str(file_path)] = meta_data
-
-        with open(save_path, "w") as file:
-            json.dump(data, file, indent=4)
-
-    def is_file_dirty(self, file_path: Path | str, save_path: Path = FILE_METADATA) -> dict | bool:
+    def is_file_dirty(
+        self, file_path: Path | str, save_path: Path = FILE_METADATA
+    ) -> dict | bool:
         if not Path(save_path).exists():
             return False
 
@@ -236,35 +250,29 @@ class Index:
 
         return sha256.hexdigest()
 
-    def remove_modifie_file(self, file_path: Path | str, save_path: Path = FILE_METADATA) -> None:
-
-        if not Path(save_path).exists():
-            return None
-        with open(save_path, "r") as file:
-            manifest = json.load(file)
+    def remove_modifie_file(self, file_path: Path | str) -> None:
 
         self.collection.delete(where={"file_path": str(file_path)})
-        manifest.pop(str(file_path), None)
+        self.manifest.pop(str(file_path), None)
 
-        with open(save_path, "w") as file:
-            json.dump(manifest, file, indent=4)
+    def remove_removed_file(
+        self,
+        all_files_path: list[Path],
+    ) -> None:
 
-    def remove_removed_file(self, all_files_path: list[Path], save_path: Path = FILE_METADATA) -> None:
-
-        if not Path(save_path).exists():
-            return None
-
-        with open(save_path, "r") as file:
-            manifest = json.load(file)
-
-        manifest_files = set(manifest.keys())
+        manifest_files = set(self.manifest.keys())
         current_files = {str(path) for path in all_files_path}
 
         deleted_files = manifest_files - current_files
 
         for file_path in deleted_files:
             self.collection.delete(where={"file_path": str(file_path)})
-            manifest.pop(str(file_path), None)
+            self.manifest.pop(str(file_path), None)
 
-        with open(save_path, "w") as file:
-            json.dump(manifest, file, indent=4)
+    def measure_time(self, name: str, start: float) -> None:
+        elapsed = perf_counter() - start
+        print(f"[TIME] {name}: {elapsed:.2f} seconds")
+
+    def _save_manifest_file(self):
+        with open(FILE_METADATA, "w") as file:
+            json.dump(self.manifest, file, indent=4)
