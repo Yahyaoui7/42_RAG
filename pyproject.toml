@@ -23,3 +23,10 @@ dev = [
     "flake8>=7.0",
     "mypy>=1.0",
 ]
+
+[tool.mypy]
+exclude = [
+    '^data/',
+    '^evaluations/',
+    '^moulinette',
+]

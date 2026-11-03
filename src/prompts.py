@@ -1,13 +1,15 @@
-from src.models import MinimalSource
+from __future__ import annotations
 
-from pathlib import Path
+from src.models import MinimalSource
 
 MAX_CONTEXT_CHARS: int = 6000
 
 
 class Prompt:
+    """Prompt builder for grounding question answers in retrieved context."""
 
     def load_chunk_text(self, chunk: MinimalSource) -> str:
+        """Read source text from file using slice offsets."""
         try:
             with open(
                 chunk.file_path,
@@ -20,12 +22,15 @@ class Prompt:
             return ""
 
         return content[
-            chunk.first_character_index : chunk.last_character_index
+            chunk.first_character_index:chunk.last_character_index
         ]
 
-    def truncate_contexts(self, contexts: list[str], budget: int) -> list[str]:
+    def truncate_contexts(
+        self, contexts: list[str], budget: int
+    ) -> list[str]:
+        """Truncate context snippets so total characters stay within budget."""
         lengths = 0
-        result = []
+        result: list[str] = []
         for chunk in contexts:
             lengths += len(chunk)
             result.append(chunk)
@@ -38,7 +43,11 @@ class Prompt:
         question: str,
         contexts: list[MinimalSource],
     ) -> str:
-        context_texts = [chunk.text for chunk in contexts]
+        """Construct prompt combining retrieved contexts and user question."""
+        context_texts = [
+            chunk.text if chunk.text else self.load_chunk_text(chunk)
+            for chunk in contexts
+        ]
 
         chunks = self.truncate_contexts(
             context_texts,
@@ -48,7 +57,7 @@ class Prompt:
         retrieved_context = "\n\n".join(chunks)
 
         return f"""Context:
-        {retrieved_context}
+{retrieved_context}
 
-        Question:
-        {question}"""
+Question:
+{question}"""

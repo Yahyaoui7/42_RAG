@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 
 class MinimalSource(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
+    id: UUID | str = Field(default_factory=uuid4)
     text: str = Field(default="")
     file_path: str
     first_character_index: int

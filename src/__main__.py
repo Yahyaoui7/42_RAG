@@ -1,5 +1,9 @@
 from __future__ import annotations
-import fire, sys
+
+import sys
+from pathlib import Path
+import fire
+
 from src.indexer import Index
 from src.config import (
     MAX_CHUNK_SIZE,
@@ -11,10 +15,8 @@ from src.config import (
     ANSWERED_DATASET_PATH,
 )
 from src.retriever import Searcher
-from src.models import MinimalSearchResults, StudentSearchResults, RagDataset
+from src.models import StudentSearchResults, RagDataset
 from src.evaluator import Evaluator
-from pathlib import Path
-
 from src.prompts import Prompt
 from src.generate import Generate
 from src.caching import Caching
@@ -55,10 +57,11 @@ class CLI:
             results = searcher.get_resources(query)
 
             for chunk in results:
-                # Exact format required: [start:end] without space
-                print(
-                    f"{chunk.file_path} [{chunk.first_character_index}:{chunk.last_character_index}]"
+                span = (
+                    f"[{chunk.first_character_index}:"
+                    f"{chunk.last_character_index}]"
                 )
+                print(f"{chunk.file_path} {span}")
         except Exception as e:
             print(f"Error during search: {e}", file=sys.stderr)
 
@@ -68,11 +71,11 @@ class CLI:
         save_directory: str = SEARCH_SAVE_DIRECTORY,
         k: int = TOP_K,
     ) -> None:
-        """Run search across an entire question dataset and output JSON results.
+        """Run search across an entire question dataset and output JSON.
 
         Args:
             dataset_path: Path to dataset JSON file.
-            save_directory: Directory where student search results will be saved.
+            save_directory: Directory where results will be saved.
             k: Number of results to retrieve per question.
         """
         try:
@@ -111,7 +114,6 @@ class CLI:
             k: Number of sources to retrieve for augmentation.
         """
         try:
-
             if not query or not query.strip() or k <= 0:
                 print("answer: I don't know.")
                 return
@@ -139,7 +141,7 @@ class CLI:
         student_search_results_path: str = STUDENT_SEARCH_RESULTS_PATH,
         save_directory: str = ANSWER_SAVE_DIRECTORY,
     ) -> None:
-        """Generate answers for all questions in a student search results file.
+        """Generate answers for all questions in search results file.
 
         Args:
             student_search_results_path: Path to the search results JSON.
@@ -175,13 +177,14 @@ class CLI:
         """Evaluate Recall@k scores against ground truth.
 
         Args:
-            student_search_results_path: Path to student search results JSON.
+            student_search_results_path: Path to search results JSON.
             dataset_path: Path to ground-truth AnsweredQuestions JSON.
         """
         try:
             if not Path(student_search_results_path).is_file():
                 print(
-                    f"Error: Missing search results at {student_search_results_path}",
+                    "Error: Missing search results at "
+                    f"{student_search_results_path}",
                     file=sys.stderr,
                 )
                 return
