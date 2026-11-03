@@ -23,7 +23,7 @@ class Prompt:
             chunk.first_character_index : chunk.last_character_index
         ]
 
-    def truncate_contexts(self, contexts: list[str], budget: int):
+    def truncate_contexts(self, contexts: list[str], budget: int) -> list[str]:
         lengths = 0
         result = []
         for chunk in contexts:

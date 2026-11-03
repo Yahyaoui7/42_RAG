@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+from typing import Any
 from fastapi import FastAPI, HTTPException
 from .retriever import Searcher
 from .caching import Caching
@@ -8,7 +11,7 @@ app = FastAPI()
 
 
 @app.get("/search")
-def get_search(query: str, k: int = 10):
+def get_search(query: str, k: int = 10) -> dict[str, Any]:
     """Return the top-k sources for a single query."""
 
     if not query.strip():
@@ -41,7 +44,7 @@ def get_search(query: str, k: int = 10):
 
 
 @app.get("/answer")
-def get_answer(query: str, k: int = 10):
+def get_answer(query: str, k: int = 10) -> dict[str, Any]:
 
     if not query.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty.")

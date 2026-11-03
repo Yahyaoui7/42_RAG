@@ -18,7 +18,7 @@ from src.config import QWEN_MODEL_ID, QWEN_MAX_NEW_TOKENS
 
 class Generate:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.tokenizer = AutoTokenizer.from_pretrained(QWEN_MODEL_ID)
         self.model = AutoModelForCausalLM.from_pretrained(
             QWEN_MODEL_ID,
@@ -37,7 +37,7 @@ class Generate:
         say "I don't know."
         - Keep the answer concise and technically accurate."""
 
-    def generate_answer(self, prompt) -> str:
+    def generate_answer(self, prompt: str) -> str:
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": prompt},

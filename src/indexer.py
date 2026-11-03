@@ -37,7 +37,7 @@ class IndexData:
 
 
 class Index:
-    def __init__(self):
+    def __init__(self) -> None:
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
 
         client = chromadb.PersistentClient(path=PROCESSED_DIR)
@@ -68,7 +68,7 @@ class Index:
             show_progress_bar=True,
         )
 
-    def save_semantic_index(self, vectors, chunks, path: Path = PROCESSED_DIR):
+    def save_semantic_index(self, vectors: np.ndarray, chunks: list[MinimalSource], path: Path = PROCESSED_DIR) -> None:
         batch_size = 5000
 
         for i in range(0, len(chunks), batch_size):
@@ -175,7 +175,7 @@ class Index:
             f"Indexed {len(chunks)} chunks from {len(all_files)} files -> {INDEX_PATH}"
         )
 
-    def save_metadata_file(self, file_path, chunks, save_path=FILE_METADATA):
+    def save_metadata_file(self, file_path: Path, chunks: list[MinimalSource], save_path: Path = FILE_METADATA) -> None:
         if os.path.exists(save_path):
             with open(save_path, "r") as file:
                 data = json.load(file)
@@ -193,7 +193,7 @@ class Index:
         with open(save_path, "w") as file:
             json.dump(data, file, indent=4)
 
-    def is_file_dirty(self, file_path, save_path=FILE_METADATA):
+    def is_file_dirty(self, file_path: Path | str, save_path: Path = FILE_METADATA) -> dict | bool:
         if not Path(save_path).exists():
             return False
 
@@ -222,7 +222,7 @@ class Index:
 
         return metadata
 
-    def get_time(self, file_path):
+    def get_time(self, file_path: Path | str) -> float:
         return Path(file_path).stat().st_mtime
 
     def calculate_hash(self, file_path: Path) -> str:
@@ -236,7 +236,7 @@ class Index:
 
         return sha256.hexdigest()
 
-    def remove_modifie_file(self, file_path, save_path=FILE_METADATA):
+    def remove_modifie_file(self, file_path: Path | str, save_path: Path = FILE_METADATA) -> None:
 
         if not Path(save_path).exists():
             return None
@@ -249,7 +249,7 @@ class Index:
         with open(save_path, "w") as file:
             json.dump(manifest, file, indent=4)
 
-    def remove_removed_file(self, all_files_path, save_path=FILE_METADATA):
+    def remove_removed_file(self, all_files_path: list[Path], save_path: Path = FILE_METADATA) -> None:
 
         if not Path(save_path).exists():
             return None

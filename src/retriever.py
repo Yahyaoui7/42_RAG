@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from pathlib import Path
 import json
 import numpy as np
+from typing import Any
 from src.chunking.base import chunk_to_minimal_source
 from src.config import INDEX_PATH, PROCESSED_DIR, FILE_METADATA
 from src.indexer import IndexData, Index
@@ -24,7 +27,7 @@ class Searcher:
         self.index = Index()
         self.index_lexical_data = self.index.load_index(index_path)
 
-    def lexical_searcha(self, query: str) -> list[MinimalSource]:
+    def lexical_searcha(self, query: str) -> list[dict[str, Any]]:
 
         if self.k <= 0:
             return []
@@ -53,7 +56,7 @@ class Searcher:
             for i, score in zip(ranked_indices, score_indices)
         ]
 
-    def semantic_search(self, query: str, path=PROCESSED_DIR):
+    def semantic_search(self, query: str, path: str = PROCESSED_DIR) -> list[dict[str, Any]]:
 
         query_vector = self.MiniLM_model.encode(
             query, normalize_embeddings=True
@@ -104,7 +107,7 @@ class Searcher:
             )
         return StudentSearchResults(search_results=results, k=self.k)
 
-    def get_resources(self, query):
+    def get_resources(self, query: str) -> list[MinimalSource]:
         lexical_result = self.lexical_searcha(query)
 
         semantic_result = self.semantic_search(query)
@@ -113,7 +116,7 @@ class Searcher:
         # chunks = [chunk["chunk"] for chunk in semantic_result]
         return result
 
-    def rrf_hybrid_retrieval(self, lexical_result, semantic_result):
+    def rrf_hybrid_retrieval(self, lexical_result: list[dict[str, Any]], semantic_result: list[dict[str, Any]]) -> list[MinimalSource]:
         rrf_hybrid = {}
         chunks_by_id = {}
         constant = 60
@@ -136,7 +139,7 @@ class Searcher:
 
         return final_rank
 
-    def wsf_hybrid_reriever(self, lexical_result, semantic_result):
+    def wsf_hybrid_reriever(self, lexical_result: list[dict[str, Any]], semantic_result: list[dict[str, Any]]) -> list[MinimalSource]:
         wsf_hybrid = {}
         chunks_by_id = {}
 
@@ -159,7 +162,7 @@ class Searcher:
         ]
         return final_rank
 
-    def wsf_lexical(self, lexical_result, weight=0.8):
+    def wsf_lexical(self, lexical_result: list[dict[str, Any]], weight: float = 0.8) -> None:
         if not lexical_result:
             return
         lex_min = min(chunk["score"] for chunk in lexical_result)
@@ -175,7 +178,7 @@ class Searcher:
 
             chunk["score"] *= weight
 
-    def wsf_semantic(self, semantic_result, weight=0.2):
+    def wsf_semantic(self, semantic_result: list[dict[str, Any]], weight: float = 0.2) -> None:
         if not semantic_result:
             return
         for chunk in semantic_result:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from pathlib import Path
 from src.models import MinimalSource
@@ -5,8 +7,8 @@ from src.models import MinimalSource
 
 class Evaluator:
     def __init__(
-        self, student_search_results_path, dataset_path
-    ):  # check if teh load became field
+        self, student_search_results_path: str, dataset_path: str
+    ) -> None:  # check if teh load became field
         self.student_result = json.loads(
             Path(student_search_results_path).read_text()
         )
@@ -16,7 +18,7 @@ class Evaluator:
             for question in self.student_result["search_results"]
         }
 
-    def check_is_valid(self, raw_source, student_source):
+    def check_is_valid(self, raw_source: MinimalSource, student_source: MinimalSource) -> bool:
         if raw_source.file_path != student_source.file_path:
             return False
         first = min(
@@ -42,14 +44,14 @@ class Evaluator:
         # print(f"{(intersection / union):2f}")
         return (intersection / union) >= 0.05
 
-    def check_top_k(self, raw_source, student_sources, k):
+    def check_top_k(self, raw_source: MinimalSource, student_sources: list[MinimalSource], k: int) -> bool:
         for source in student_sources[:k]:
             if self.check_is_valid(raw_source, source):
                 return True
 
         return False
 
-    def get_score(self):
+    def get_score(self) -> dict[int, float]:
 
         questions = self.dataset_result["rag_questions"]
         checker = [1, 3, 5, 10]
