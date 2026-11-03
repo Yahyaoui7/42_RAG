@@ -273,6 +273,6 @@ class Index:
         elapsed = perf_counter() - start
         print(f"[TIME] {name}: {elapsed:.2f} seconds")
 
-    def _save_manifest_file(self):
+    def _save_manifest_file(self) -> None:
         with open(FILE_METADATA, "w") as file:
             json.dump(self.manifest, file, indent=4)
