@@ -28,15 +28,16 @@ run:
 	@echo ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"
 	@echo "                EVALUATE CODE DATASET"
 	@echo "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<"
-	@$(RUN) -m src search_dataset -d $(DATASET_CODE_PATH)  -k $(TOP_K)
-	@$(RUN) -m src evaluate -s $(STUDENT_SEARCH_CODE_RESULT) -d $(TRUTH_DATASET_CODE_PATH)
+	@$(RUN) -m src search_dataset --dataset_path $(DATASET_CODE_PATH) -k $(TOP_K)
+	@$(RUN) -m src evaluate --student_search_results_path $(STUDENT_SEARCH_CODE_RESULT) --dataset_path $(TRUTH_DATASET_CODE_PATH)
 
 
 debug:
-	$(RUN) -m pdb -m src
+	$(RUN) python -m pdb src/__main__.py
 
 clean:
-	$(RUN) pyclean . -d
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
 	rm -rf .mypy_cache
 
 

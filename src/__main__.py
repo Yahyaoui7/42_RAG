@@ -202,6 +202,22 @@ class CLI:
         except Exception as e:
             print(f"Error during evaluation: {e}", file=sys.stderr)
 
+    def serve(self, host: str = "127.0.0.1", port: int = 8000) -> None:
+        """Run the local HTTP API server (Bonus 5).
+
+        Args:
+            host: IP address or host to bind.
+            port: Port number to listen on.
+        """
+        try:
+            import uvicorn
+            from src.server import app
+
+            print(f"Starting Local HTTP API on http://{host}:{port} ...")
+            uvicorn.run(app, host=host, port=int(port))
+        except Exception as e:
+            print(f"Error starting server: {e}", file=sys.stderr)
+
 
 def main() -> None:
     """CLI entry point using Python Fire."""
@@ -210,15 +226,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-# import hashlib
-
-# def get_file_hash(file_path):
-#     sha256 = hashlib.sha256()
-
-#     with open(file_path, "rb") as file:
-#         while chunk := file.read(4096):
-#             sha256.update(chunk)
-
-#     return sha256.hexdigest()

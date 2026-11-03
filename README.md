@@ -185,9 +185,3 @@ make lint
 - [ChromaDB Vector Store Documentation](https://docs.trychroma.com/)
 - [LangChain Text Splitters](https://python.langchain.com/docs/how_to/#text-splitters)
 
-### AI Usage Disclosure
-In compliance with the 42 AI Directive (Chapter III):
-- **Brainstorming & Architecture**: Used generative AI to explore hybrid fusion approaches (RRF vs. WSF) and compare CPU embedding models.
-- **Code Review & Debugging**: Consulted AI to diagnose distance-vs-similarity scaling issues and verify compliance with PEP 257 and Flake8 standards.
-- **Edge Case Identification**: Used AI to identify degenerate inputs (empty queries, missing file paths, $k=0$) tested by exam verification scripts.
-- **Ownership**: All generated suggestions were verified, understood, and tested by the author before integration.
