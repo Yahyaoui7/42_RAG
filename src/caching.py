@@ -10,7 +10,7 @@ class Caching:
 
     def __init__(self, top_k: int, cache_path: str = CACHE_PATH) -> None:
         """Initialize cache store."""
-        self.cache_path = cache_path
+        self.cache_path = Path(cache_path)
         self.top_k = top_k
         self.cache: dict[str, str] = {}
 
@@ -38,5 +38,6 @@ class Caching:
         norm_key = self.normalize(query) + f" [top_k={self.top_k}]"
         self.cache[norm_key] = answer
 
+        self.cache_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.cache_path, "w", encoding="utf-8") as file:
             json.dump(self.cache, file, indent=4)
