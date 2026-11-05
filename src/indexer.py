@@ -33,7 +33,6 @@ class IndexData:
 
     bm25: bm25s.BM25 | None
     chunks: list[MinimalSource]
-    tokenized_corpus: list[list[str]]
 
 
 class Index:
@@ -58,7 +57,7 @@ class Index:
         tokenized_corpus = bm25s.tokenize([chunk.text for chunk in chunks])
 
         if not tokenized_corpus or not any(tokenized_corpus):
-            return IndexData(bm25=None, chunks=chunks, tokenized_corpus=[])
+            return IndexData(bm25=None, chunks=chunks)
 
         retriever = bm25s.BM25()
         retriever.index(tokenized_corpus, show_progress=False)
@@ -66,12 +65,9 @@ class Index:
         return IndexData(
             bm25=retriever,
             chunks=chunks,
-            tokenized_corpus=tokenized_corpus,
         )
 
-    def build_semantic_index(
-        self, chunks: list[MinimalSource]
-    ) -> np.ndarray:
+    def build_semantic_index(self, chunks: list[MinimalSource]) -> np.ndarray:
         """Generate dense vector embeddings for chunks."""
         return self.model.encode(
             [chunk.text for chunk in chunks],
@@ -88,8 +84,8 @@ class Index:
         batch_size = 5000
 
         for i in range(0, len(chunks), batch_size):
-            batch = chunks[i:i + batch_size]
-            batch_vectors = vectors[i:i + batch_size].tolist()
+            batch = chunks[i : i + batch_size]
+            batch_vectors = vectors[i : i + batch_size].tolist()
 
             self.collection.upsert(
                 ids=[str(chunk.id) for chunk in batch],
@@ -122,10 +118,7 @@ class Index:
         """
         path = Path(path)
         if not path.exists():
-            raise FileNotFoundError(
-                f"Index not found at {path}. "
-                "Run `index --max_chunk_size 2000` first."
-            )
+            raise FileNotFoundError(f"Index not found at {path}. ")
 
         with path.open("rb") as f:
             loaded: Any = pickle.load(f)
@@ -160,7 +153,7 @@ class Index:
         chunks: list[MinimalSource] = []
         new_chunk: list[MinimalSource] = []
 
-        self.remove_removed_file(all_files)
+        self.remove_removed_files(all_files)
 
         for file_path in tqdm(all_files, desc="Chunking"):
             data = self.is_file_dirty(file_path)
@@ -248,7 +241,7 @@ class Index:
         self.collection.delete(where={"file_path": str(file_path)})
         self.manifest.pop(str(file_path), None)
 
-    def remove_removed_file(
+    def remove_removed_files(
         self,
         all_files_path: list[Path],
     ) -> None:

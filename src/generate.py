@@ -84,7 +84,7 @@ class Generate:
         answered_results: list[MinimalAnswer] = []
         cache = Caching(student_result.k)
 
-        for retrieve in tqdm(student_result.search_results):
+        for retrieve in tqdm(student_result.search_results, desc="retriver: "):
             answer = cache.get_answer_from_cache(retrieve.question)
             if not answer:
                 prompt = Prompt().build_prompt(

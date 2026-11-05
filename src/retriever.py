@@ -39,11 +39,8 @@ class Searcher:
         ):
             return []
 
-        candidate_k = min(
-            max(self.k * 3, 20), len(self.index_lexical_data.chunks)
-        )
         result, scores = self.index_lexical_data.bm25.retrieve(
-            tokens, k=candidate_k
+            tokens, k=self.k
         )
         ranked_indices = result[0].tolist()
         score_indices = scores[0].tolist()
@@ -64,14 +61,13 @@ class Searcher:
         if self.k <= 0 or not query.strip():
             return []
 
-        candidate_k = max(self.k * 3, 20)
         query_vector = self.MiniLM_model.encode(
             query, normalize_embeddings=True
         )
 
         results = self.index.collection.query(
             query_embeddings=[query_vector.tolist()],
-            n_results=candidate_k,
+            n_results=self.k,
             include=["documents", "metadatas", "distances"],
         )
 
@@ -159,9 +155,7 @@ class Searcher:
             rrf_hybrid.items(), key=lambda item: item[1], reverse=True
         )
 
-        return [
-            chunks_by_id[chunk_id] for chunk_id, _ in id_sorted[: self.k]
-        ]
+        return [chunks_by_id[chunk_id] for chunk_id, _ in id_sorted[: self.k]]
 
     def wsf_hybrid_reriever(
         self,
@@ -187,9 +181,7 @@ class Searcher:
             wsf_hybrid.items(), key=lambda item: item[1], reverse=True
         )
 
-        return [
-            chunks_by_id[chunk_id] for chunk_id, _ in id_sorted[: self.k]
-        ]
+        return [chunks_by_id[chunk_id] for chunk_id, _ in id_sorted[: self.k]]
 
     def wsf_lexical(
         self, lexical_result: list[dict[str, Any]], weight: float = 0.8
