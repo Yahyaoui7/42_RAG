@@ -27,8 +27,6 @@ class Searcher:
 
     def lexical_searcha(self, query: str) -> list[dict[str, Any]]:
         """Retrieve candidates using BM25 lexical search."""
-        if self.k <= 0 or not query.strip():
-            return []
         tokens = bm25s.tokenize([query])
 
         if not tokens:
@@ -58,8 +56,7 @@ class Searcher:
         self, query: str, path: Path = PROCESSED_DIR
     ) -> list[dict[str, Any]]:
         """Retrieve candidates using dense vector similarity in ChromaDB."""
-        if self.k <= 0 or not query.strip():
-            return []
+
 
         query_vector = self.MiniLM_model.encode(
             query, normalize_embeddings=True
