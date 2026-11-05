@@ -57,7 +57,6 @@ class Searcher:
     ) -> list[dict[str, Any]]:
         """Retrieve candidates using dense vector similarity in ChromaDB."""
 
-
         query_vector = self.MiniLM_model.encode(
             query, normalize_embeddings=True
         )
@@ -205,5 +204,5 @@ class Searcher:
         if not semantic_result:
             return
         for chunk in semantic_result:
-            similarity = 1.0 - float(chunk["score"])
+            similarity = 1.0 - float(chunk["score"]) / 2.0
             chunk["score"] = similarity * weight
