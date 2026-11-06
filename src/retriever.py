@@ -14,6 +14,8 @@ from src.models import (
     UnansweredQuestion,
 )
 
+# from src.chunking.util import tokenize_code_and_text
+
 
 class Searcher:
     """Hybrid lexical and semantic search engine."""
@@ -28,7 +30,7 @@ class Searcher:
     def lexical_searcha(self, query: str) -> list[dict[str, Any]]:
         """Retrieve candidates using BM25 lexical search."""
         tokens = bm25s.tokenize([query])
-
+        # tokens = tokenize_code_and_text(query)
         if not tokens:
             return []
         if (
@@ -127,6 +129,8 @@ class Searcher:
         """Perform hybrid retrieval combining BM25 and vector search."""
         lexical_result = self.lexical_searcha(query)
         semantic_result = self.semantic_search(query)
+        # chunks = [chunk["chunk"] for chunk in lexical_result]
+        # return chunks
         return self.wsf_hybrid_reriever(lexical_result, semantic_result)
 
     def rrf_hybrid_retrieval(
@@ -180,7 +184,7 @@ class Searcher:
         return [chunks_by_id[chunk_id] for chunk_id, _ in id_sorted[: self.k]]
 
     def wsf_lexical(
-        self, lexical_result: list[dict[str, Any]], weight: float = 0.8
+        self, lexical_result: list[dict[str, Any]], weight: float = 0.6
     ) -> None:
         """Min-max normalize lexical scores and apply weight."""
         if not lexical_result:
@@ -198,7 +202,7 @@ class Searcher:
             chunk["score"] *= weight
 
     def wsf_semantic(
-        self, semantic_result: list[dict[str, Any]], weight: float = 0.2
+        self, semantic_result: list[dict[str, Any]], weight: float = 0.4
     ) -> None:
         """Convert distance to similarity and apply weight."""
         if not semantic_result:

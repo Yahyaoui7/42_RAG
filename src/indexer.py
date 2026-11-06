@@ -84,8 +84,8 @@ class Index:
         batch_size = 5000
 
         for i in range(0, len(chunks), batch_size):
-            batch = chunks[i : i + batch_size]
-            batch_vectors = vectors[i : i + batch_size].tolist()
+            batch = chunks[i:i + batch_size]
+            batch_vectors = vectors[i:i + batch_size].tolist()
 
             self.collection.upsert(
                 ids=[str(chunk.id) for chunk in batch],
