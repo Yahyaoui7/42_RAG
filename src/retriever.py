@@ -29,7 +29,12 @@ class Searcher:
 
     def lexical_searcha(self, query: str) -> list[dict[str, Any]]:
         """Retrieve candidates using BM25 lexical search."""
-        tokens = bm25s.tokenize([query])
+        import Stemmer
+
+        stemmer = Stemmer.Stemmer("english")
+        tokens = tokens = bm25s.tokenize(
+            [query], stopwords="english", stemmer=stemmer
+        )
         # tokens = tokenize_code_and_text(query)
         if not tokens:
             return []
@@ -184,7 +189,7 @@ class Searcher:
         return [chunks_by_id[chunk_id] for chunk_id, _ in id_sorted[: self.k]]
 
     def wsf_lexical(
-        self, lexical_result: list[dict[str, Any]], weight: float = 0.6
+        self, lexical_result: list[dict[str, Any]], weight: float = 0.8
     ) -> None:
         """Min-max normalize lexical scores and apply weight."""
         if not lexical_result:
@@ -202,7 +207,7 @@ class Searcher:
             chunk["score"] *= weight
 
     def wsf_semantic(
-        self, semantic_result: list[dict[str, Any]], weight: float = 0.4
+        self, semantic_result: list[dict[str, Any]], weight: float = 0.2
     ) -> None:
         """Convert distance to similarity and apply weight."""
         if not semantic_result:

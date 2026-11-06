@@ -54,7 +54,14 @@ class Index:
 
     def build_lexical_index(self, chunks: list[MinimalSource]) -> IndexData:
         """Build a BM25 index using tokenized chunks."""
-        tokenized_corpus = bm25s.tokenize([chunk.text for chunk in chunks])
+        import Stemmer
+
+        stemmer = Stemmer.Stemmer("english")
+        tokenized_corpus = bm25s.tokenize(
+            [chunk.text for chunk in chunks],
+            stopwords="english",
+            stemmer=stemmer,
+        )
 
         if not tokenized_corpus or not any(tokenized_corpus):
             return IndexData(bm25=None, chunks=chunks)

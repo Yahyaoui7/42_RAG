@@ -36,5 +36,5 @@ CACHE_PATH: str = "data/cache/query_cache.json"
 FILE_METADATA = PROCESSED_DIR / "manifest.json"
 
 QWEN_MODEL_ID: str = "Qwen/Qwen3-0.6B"
-QWEN_MAX_NEW_TOKENS: int = 300
+QWEN_MAX_NEW_TOKENS: int = 512
 QWEN_TEMPERATURE: float = 0.0  # deterministic

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.models import MinimalSource
 
-MAX_CONTEXT_CHARS: int = 6000
+MAX_CONTEXT_CHARS: int = 15000
 
 
 class Prompt:
